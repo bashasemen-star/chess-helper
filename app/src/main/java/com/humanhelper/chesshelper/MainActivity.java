@@ -20,12 +20,13 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // 1. Проверяем разрешение на оверлей
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
@@ -33,7 +34,14 @@ public class MainActivity extends Activity {
             finish();
             return;
         }
-        startService(new Intent(this, OverlayService.class));
+
+        // 2. Запускаем сервис
+        Intent serviceIntent = new Intent(this, OverlayService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
         finish();
     }
 
@@ -44,8 +52,25 @@ public class MainActivity extends Activity {
         @Override
         public void onCreate() {
             super.onCreate();
-            startForeground(1, createNotification()); 
             
+            // Создаем уведомление, чтобы Android не убил сервис
+            String channelId = "chess_helper_channel";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
+                NotificationManager manager = getSystemService(NotificationManager.class);
+                manager.createNotificationChannel(channel);
+            }
+            
+            Notification notification = new Notification.Builder(this, channelId)
+                    .setContentTitle("Chess Helper")
+                    .setContentText("Стрелка активна")
+                    .setSmallIcon(android.R.drawable.ic_menu_compass)
+                    .build();
+            
+            // ВАЖНО: вызываем startForeground ДО добавления оверлея
+            startForeground(1, notification);
+
+            // Теперь создаем оверлей
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             arrowView = new ArrowView(this);
             
@@ -62,23 +87,9 @@ public class MainActivity extends Activity {
             windowManager.addView(arrowView, params);
         }
 
-        private Notification createNotification() {
-            String channelId = "chess_helper_channel";
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
-                NotificationManager manager = getSystemService(NotificationManager.class);
-                manager.createNotificationChannel(channel);
-            }
-            return new Notification.Builder(this, channelId)
-                    .setContentTitle("Chess Helper")
-                    .setContentText("Стрелка активна")
-                    .setSmallIcon(android.R.drawable.ic_menu_compass)
-                    .build();
-        }
-
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
-            return START_STICKY; 
+            return START_STICKY;
         }
 
         @Override
