@@ -7,23 +7,14 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
-import android.graphics.Point;
-import android.hardware.display.DisplayManager;
-import android.hardware.display.VirtualDisplay;
-import android.media.Image;
-import android.media.ImageReader;
-import android.media.projection.MediaProjection;
-import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.view.Gravity;
@@ -32,9 +23,6 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final int REQUEST_CODE_SCREEN_CAPTURE = 1;
-    private MediaProjectionManager projectionManager;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,21 +33,8 @@ public class MainActivity extends Activity {
             finish();
             return;
         }
-        projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        Intent captureIntent = projectionManager.createScreenCaptureIntent();
-        startActivityForResult(captureIntent, REQUEST_CODE_SCREEN_CAPTURE);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_SCREEN_CAPTURE && resultCode == RESULT_OK) {
-            Intent serviceIntent = new Intent(this, OverlayService.class);
-            serviceIntent.putExtra("resultCode", resultCode);
-            serviceIntent.putExtra("data", data);
-            startForegroundService(serviceIntent); // Запускаем как Foreground
-            finish();
-        }
+        startService(new Intent(this, OverlayService.class));
+        finish();
     }
 
     public static class OverlayService extends Service {
@@ -69,7 +44,7 @@ public class MainActivity extends Activity {
         @Override
         public void onCreate() {
             super.onCreate();
-            startForeground(1, createNotification()); // Делаем сервис "важным"
+            startForeground(1, createNotification()); 
             
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             arrowView = new ArrowView(this);
@@ -93,15 +68,17 @@ public class MainActivity extends Activity {
                 NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
                 NotificationManager manager = getSystemService(NotificationManager.class);
                 manager.createNotificationChannel(channel);
-            
+            }
             return new Notification.Builder(this, channelId)
-        .setContentTitle("Chess Helper")
-        .setContentText("Стрелка активна")
-        .setSmallIcon(android.R.drawable.ic_menu_compass)
-        .build();
+                    .setContentTitle("Chess Helper")
+                    .setContentText("Стрелка активна")
+                    .setSmallIcon(android.R.drawable.ic_menu_compass)
+                    .build();
+        }
+
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
-            return START_STICKY; // Если система убьет, она перезапустит
+            return START_STICKY; 
         }
 
         @Override
