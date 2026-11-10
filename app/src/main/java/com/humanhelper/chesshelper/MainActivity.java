@@ -1,6 +1,9 @@
 package com.humanhelper.chesshelper;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -27,6 +30,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
+import androidx.core.app.NotificationCompat;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CODE_SCREEN_CAPTURE = 1;
@@ -35,8 +39,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Проверяем разрешение на оверлей
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
@@ -44,8 +46,6 @@ public class MainActivity extends Activity {
             finish();
             return;
         }
-
-        // Запрашиваем разрешение на захват экрана
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         Intent captureIntent = projectionManager.createScreenCaptureIntent();
         startActivityForResult(captureIntent, REQUEST_CODE_SCREEN_CAPTURE);
@@ -55,28 +55,23 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_SCREEN_CAPTURE && resultCode == RESULT_OK) {
-            // Сохраняем результат (data) и запускаем сервис
             Intent serviceIntent = new Intent(this, OverlayService.class);
             serviceIntent.putExtra("resultCode", resultCode);
             serviceIntent.putExtra("data", data);
-            startService(serviceIntent);
-            finish();
-        } else {
-            Toast.makeText(this, "Нужно разрешение на захват экрана", Toast.LENGTH_SHORT).show();
+            startForegroundService(serviceIntent); // Запускаем как Foreground
             finish();
         }
     }
 
-    public static class OverlayService extends Service implements ImageReader.OnImageAvailableListener {
+    public static class OverlayService extends Service {
         private WindowManager windowManager;
         private ArrowView arrowView;
-        private MediaProjection mediaProjection;
-        private VirtualDisplay virtualDisplay;
-        private ImageReader imageReader;
 
         @Override
         public void onCreate() {
             super.onCreate();
+            startForeground(1, createNotification()); // Делаем сервис "важным"
+            
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             arrowView = new ArrowView(this);
             
@@ -93,54 +88,27 @@ public class MainActivity extends Activity {
             windowManager.addView(arrowView, params);
         }
 
+        private Notification createNotification() {
+            String channelId = "chess_helper_channel";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
+                NotificationManager manager = getSystemService(NotificationManager.class);
+                manager.createNotificationChannel(channel);
+            }
+            return new NotificationCompat.Builder(this, channelId)
+                    .setContentTitle("Chess Helper")
+                    .setContentText("Стрелка активна")
+                    .setSmallIcon(android.R.drawable.ic_menu_compass)
+                    .build();
+        }
+
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
-            if (intent != null && intent.hasExtra("resultCode")) {
-                int resultCode = intent.getIntExtra("resultCode", -1);
-                Intent data = intent.getParcelableExtra("data");
-                startCapture(resultCode, data);
-            }
-            return START_STICKY;
-        }
-
-        private void startCapture(int resultCode, Intent data) {
-            MediaProjectionManager projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-            mediaProjection = projectionManager.getMediaProjection(resultCode, data);
-            
-            // Создаем ImageReader для скриншотов
-            Point size = new Point();
-            windowManager.getDefaultDisplay().getSize(size);
-            imageReader = ImageReader.newInstance(size.x, size.y, PixelFormat.RGBA_8888, 2);
-            imageReader.setOnImageAvailableListener(this, null);
-            
-            virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
-                    size.x, size.y, getResources().getDisplayMetrics().densityDpi,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    imageReader.getSurface(), null, null);
-        }
-
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-            // Получаем скриншот
-            Image image = reader.acquireLatestImage();
-            if (image != null) {
-                // Тут будет код распознавания (OpenCV)
-                // Пока просто обновляем стрелку в фиксированном месте
-                image.close();
-            }
+            return START_STICKY; // Если система убьет, она перезапустит
         }
 
         @Override
         public IBinder onBind(Intent intent) { return null; }
-
-        @Override
-        public void onDestroy() {
-            super.onDestroy();
-            if (arrowView != null && windowManager != null) windowManager.removeView(arrowView);
-            if (virtualDisplay != null) virtualDisplay.release();
-            if (mediaProjection != null) mediaProjection.stop();
-            if (imageReader != null) imageReader.close();
-        }
     }
 
     public static class ArrowView extends View {
@@ -157,7 +125,6 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            // Рисуем стрелку (пока фиксированно)
             float startX = 540f;
             float startY = 1600f;
             float endX = 540f;
