@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
 }
+
 android {
     namespace 'com.humanhelper.chesshelper'
     compileSdk 34
@@ -20,3 +21,4 @@ android {
 dependencies {
     implementation 'androidx.core:core:1.12.0'
 }
+
