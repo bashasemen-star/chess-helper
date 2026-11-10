@@ -30,7 +30,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
-import androidx.core.app.NotificationCompat;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CODE_SCREEN_CAPTURE = 1;
@@ -94,14 +93,12 @@ public class MainActivity extends Activity {
                 NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
                 NotificationManager manager = getSystemService(NotificationManager.class);
                 manager.createNotificationChannel(channel);
-            }
-            return new NotificationCompat.Builder(this, channelId)
-                    .setContentTitle("Chess Helper")
-                    .setContentText("Стрелка активна")
-                    .setSmallIcon(android.R.drawable.ic_menu_compass)
-                    .build();
-        }
-
+            
+            return new Notification.Builder(this, channelId)
+        .setContentTitle("Chess Helper")
+        .setContentText("Стрелка активна")
+        .setSmallIcon(android.R.drawable.ic_menu_compass)
+        .build();
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
             return START_STICKY; // Если система убьет, она перезапустит
