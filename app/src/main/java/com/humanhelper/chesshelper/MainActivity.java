@@ -33,11 +33,11 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // Координаты доски (подгони под свой экран)
+    // НОВЫЕ КООРДИНАТЫ (подогнаны под твой скриншот)
     private int boardX = 0;
-    private int boardY = 550;
+    private int boardY = 900; // Сдвинули вниз
     private int boardSize = 1080;
-    private int cellSize = boardSize / 8;
+    private int cellSize = 135; // Размер клетки (1080/8)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,6 +100,7 @@ public class MainActivity extends Activity {
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
                     // 3. Рисуем квадраты на e2 (фигура) и e4 (куда идти)
+                    // e2: x = boardX + 4 * cellSize, y = boardY + 6 * cellSize
                     int e2x = boardX + 4 * cellSize;
                     int e2y = boardY + 6 * cellSize;
                     int e4x = boardX + 4 * cellSize;
