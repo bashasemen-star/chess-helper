@@ -1,13 +1,9 @@
 package com.humanhelper.chesshelper;
 
 import android.app.Activity;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ServiceInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -21,7 +17,6 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 public class MainActivity extends Activity {
     @Override
@@ -45,27 +40,6 @@ public class MainActivity extends Activity {
         @Override
         public void onCreate() {
             super.onCreate();
-            
-            String channelId = "chess_helper_channel";
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
-                NotificationManager manager = getSystemService(NotificationManager.class);
-                manager.createNotificationChannel(channel);
-            }
-            
-            Notification notification = new Notification.Builder(this, channelId)
-                    .setContentTitle("Chess Helper")
-                    .setContentText("Стрелка активна")
-                    .setSmallIcon(android.R.drawable.ic_menu_compass)
-                    .build();
-            
-            // ВАЖНО: указываем тип specialUse для Android 14+
-            if (Build.VERSION.SDK_INT >= 34) {
-                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-            } else {
-                startForeground(1, notification);
-            }
-
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             arrowView = new ArrowView(this);
             
