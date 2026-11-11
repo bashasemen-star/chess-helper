@@ -1,33 +1,17 @@
 package com.humanhelper.chesshelper;
 
 import android.app.Activity;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
-import android.hardware.display.DisplayManager;
-import android.hardware.display.VirtualDisplay;
-import android.media.Image;
-import android.media.ImageReader;
-import android.media.projection.MediaProjection;
-import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.Looper;
 import android.provider.Settings;
-import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -35,26 +19,29 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
+import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.move.Move;
+import com.github.bhlangonijr.chesslib.move.MoveGenerator;
+
+import java.util.List;
 
 public class MainActivity extends Activity {
-    private static final int REQUEST_CODE = 100;
     private WindowManager windowManager;
     private ArrowView arrowView;
-    private MediaProjectionManager projectionManager;
+    
+    private int startX = 540;
+    private int startY = 1600;
+    private int endX = 540;
+    private int endY = 1300;
+    
+    private int savedStartX = 540;
+    private int savedStartY = 1600;
+    private int savedEndX = 540;
+    private int savedEndY = 1300;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        if (!OpenCVLoader.initDebug()) {
-            Log.e("OpenCV", "Не удалось загрузить OpenCV");
-        }
-
-        projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -68,36 +55,74 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        Button btnCapture = new Button(this);
-        btnCapture.setText("ЗАХВАТИТЬ ЭКРАН (ТЕСТ СЕТКИ)");
-        btnCapture.setOnClickListener(v -> {
-            startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_CODE);
-        });
-
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
         btnOn.setOnClickListener(v -> showOverlay());
 
-        layout.addView(btnCapture);
-        layout.addView(btnOn);
-        setContentView(layout);
-    }
+        Button btnSave = new Button(this);
+        btnSave.setText("СОХРАНИТЬ КООРДИНАТЫ");
+        btnSave.setOnClickListener(v -> {
+            savedStartX = startX; savedStartY = startY;
+            savedEndX = endX; savedEndY = endY;
+            Toast.makeText(this, "Координаты сохранены", Toast.LENGTH_SHORT).show();
+        });
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
-            Intent serviceIntent = new Intent(this, CaptureService.class);
-            serviceIntent.putExtra("resultCode", resultCode);
-            serviceIntent.putExtra("data", data);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent);
-            } else {
-                startService(serviceIntent);
+        Button btnEngine = new Button(this);
+        btnEngine.setText("ДВИЖОК: ПОКАЗАТЬ ХОД");
+        btnEngine.setOnClickListener(v -> {
+            try {
+                Board board = new Board();
+                List<Move> moves = MoveGenerator.generateLegalMoves(board);
+                if (!moves.isEmpty()) {
+                    Move bestMove = moves.get(0);
+                    startX = savedStartX; startY = savedStartY;
+                    endX = savedEndX; endY = savedEndY;
+                    if (arrowView != null) arrowView.invalidate();
+                    Toast.makeText(this, "Ход: " + bestMove, Toast.LENGTH_LONG).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(this, "Ошибка движка: " + e.getMessage(), Toast.LENGTH_LONG).show();
             }
-        } else {
-            Toast.makeText(this, "Отказано в захвате", Toast.LENGTH_SHORT).show();
-        }
+        });
+
+        Button btnStartUp = new Button(this);
+        btnStartUp.setText("НИЗ ВВЕРХ");
+        btnStartUp.setOnClickListener(v -> { startY -= 50; updateArrow(); });
+        Button btnStartDown = new Button(this);
+        btnStartDown.setText("НИЗ ВНИЗ");
+        btnStartDown.setOnClickListener(v -> { startY += 50; updateArrow(); });
+        Button btnStartLeft = new Button(this);
+        btnStartLeft.setText("НИЗ ВЛЕВО");
+        btnStartLeft.setOnClickListener(v -> { startX -= 50; updateArrow(); });
+        Button btnStartRight = new Button(this);
+        btnStartRight.setText("НИЗ ВПРАВО");
+        btnStartRight.setOnClickListener(v -> { startX += 50; updateArrow(); });
+
+        Button btnEndUp = new Button(this);
+        btnEndUp.setText("ВЕРХ ВВЕРХ");
+        btnEndUp.setOnClickListener(v -> { endY -= 50; updateArrow(); });
+        Button btnEndDown = new Button(this);
+        btnEndDown.setText("ВЕРХ ВНИЗ");
+        btnEndDown.setOnClickListener(v -> { endY += 50; updateArrow(); });
+        Button btnEndLeft = new Button(this);
+        btnEndLeft.setText("ВЕРХ ВЛЕВО");
+        btnEndLeft.setOnClickListener(v -> { endX -= 50; updateArrow(); });
+        Button btnEndRight = new Button(this);
+        btnEndRight.setText("ВЕРХ ВПРАВО");
+        btnEndRight.setOnClickListener(v -> { endX += 50; updateArrow(); });
+
+        layout.addView(btnOn);
+        layout.addView(btnSave);
+        layout.addView(btnEngine);
+        layout.addView(btnStartUp);
+        layout.addView(btnStartDown);
+        layout.addView(btnStartLeft);
+        layout.addView(btnStartRight);
+        layout.addView(btnEndUp);
+        layout.addView(btnEndDown);
+        layout.addView(btnEndLeft);
+        layout.addView(btnEndRight);
+        setContentView(layout);
     }
 
     private void showOverlay() {
@@ -121,65 +146,8 @@ public class MainActivity extends Activity {
         }
     }
 
-    public static class CaptureService extends Service {
-        private MediaProjection mediaProjection;
-        private ImageReader imageReader;
-        private VirtualDisplay virtualDisplay;
-
-        @Override
-        public int onStartCommand(Intent intent, int flags, int startId) {
-            String channelId = "screen_capture";
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel channel = new NotificationChannel(channelId, "Screen Capture", NotificationManager.IMPORTANCE_LOW);
-                NotificationManager manager = getSystemService(NotificationManager.class);
-                manager.createNotificationChannel(channel);
-            }
-            Notification notification = new Notification.Builder(this, channelId)
-                    .setContentTitle("Захват экрана")
-                    .setContentText("Анализ доски...")
-                    .setSmallIcon(android.R.drawable.ic_menu_camera)
-                    .build();
-            startForeground(1, notification);
-
-            int resultCode = intent.getIntExtra("resultCode", -1);
-            Intent data = intent.getParcelableExtra("data");
-            if (resultCode != -1 && data != null) {
-                MediaProjectionManager manager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                mediaProjection = manager.getMediaProjection(resultCode, data);
-                startCapture();
-            }
-            return START_STICKY;
-        }
-
-        private void startCapture() {
-            DisplayMetrics metrics = new DisplayMetrics();
-            WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-            wm.getDefaultDisplay().getMetrics(metrics);
-            int width = metrics.widthPixels;
-            int height = metrics.heightPixels;
-
-            imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
-            virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
-                    width, height, metrics.densityDpi,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                    imageReader.getSurface(), null, null);
-
-            imageReader.setOnImageAvailableListener(reader -> {
-                Image image = reader.acquireLatestImage();
-                if (image != null) {
-                    Bitmap bitmap = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
-                    Mat mat = new Mat();
-                    Utils.bitmapToMat(bitmap, mat);
-                    
-                    Log.d("Capture", "Скриншот сделан, размер: " + image.getWidth() + "x" + image.getHeight());
-                    
-                    image.close();
-                }
-            }, new Handler(Looper.getMainLooper()));
-        }
-
-        @Override
-        public IBinder onBind(Intent intent) { return null; }
+    private void updateArrow() {
+        if (arrowView != null) arrowView.invalidate();
     }
 
     public class ArrowView extends View {
@@ -196,12 +164,12 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            canvas.drawLine(540, 1600, 540, 1300, paint);
+            canvas.drawLine(startX, startY, endX, endY, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
-            path.moveTo(540, 1300);
-            path.lineTo(500, 1360);
-            path.lineTo(580, 1360);
+            path.moveTo(endX, endY);
+            path.lineTo(endX - 40, endY + 60);
+            path.lineTo(endX + 40, endY + 60);
             path.close();
             canvas.drawPath(path, paint);
         }
