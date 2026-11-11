@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnCapture = new Button(this);
-        btnCapture.setText("ЗАХВАТИТЬ ЭКРАН");
+        btnCapture.setText("ЗАХВАТИТЬ ЭКРАН (ТЕСТ СЕТКИ)");
         btnCapture.setOnClickListener(v -> {
             startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_CODE);
         });
@@ -167,12 +167,11 @@ public class MainActivity extends Activity {
             imageReader.setOnImageAvailableListener(reader -> {
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
-                    // Конвертируем в Bitmap и Mat (OpenCV)
                     Bitmap bitmap = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
-                    // В реальности нужно скопировать пиксели, но для теста используем заглушку
-                    // (чтобы не усложнять код)
+                    Mat mat = new Mat();
+                    Utils.bitmapToMat(bitmap, mat);
                     
-                    Log.d("Capture", "Скриншот сделан: " + image.getWidth() + "x" + image.getHeight());
+                    Log.d("Capture", "Скриншот сделан, размер: " + image.getWidth() + "x" + image.getHeight());
                     
                     image.close();
                 }
