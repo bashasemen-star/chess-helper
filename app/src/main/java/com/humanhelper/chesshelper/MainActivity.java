@@ -3,8 +3,6 @@ package com.humanhelper.chesshelper;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -33,11 +31,10 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // НОВЫЕ КООРДИНАТЫ (подогнаны под твой скриншот)
-    private int boardX = 0;
-    private int boardY = 900; // Сдвинули вниз
-    private int boardSize = 1080;
-    private int cellSize = 135; // Размер клетки (1080/8)
+    // СДВИГАЕМ ДОСКУ ВПРАВО (на 1 клетку)
+    private int boardX = 135; // Сдвиг вправо
+    private int boardY = 900; // Сдвиг вниз (уже настроен)
+    private int cellSize = 135; // Размер клетки
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +76,7 @@ public class MainActivity extends Activity {
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 2000); // Каждые 2 секунды
+                    handler.postDelayed(this, 2000);
                 }
             }
         }, 1000);
@@ -88,7 +85,6 @@ public class MainActivity extends Activity {
     private void doHack() {
         new Thread(() -> {
             try {
-                // 1. Делаем скриншот с рутом
                 Process process = Runtime.getRuntime().exec("su");
                 DataOutputStream os = new DataOutputStream(process.getOutputStream());
                 os.writeBytes("screencap -p /sdcard/screen.png\n");
@@ -96,11 +92,9 @@ public class MainActivity extends Activity {
                 os.flush();
                 process.waitFor();
 
-                // 2. Проверяем, что скриншот создался
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    // 3. Рисуем квадраты на e2 (фигура) и e4 (куда идти)
-                    // e2: x = boardX + 4 * cellSize, y = boardY + 6 * cellSize
+                    // Квадраты на e2 и e4 (с учетом сдвига boardX)
                     int e2x = boardX + 4 * cellSize;
                     int e2y = boardY + 6 * cellSize;
                     int e4x = boardX + 4 * cellSize;
@@ -113,7 +107,6 @@ public class MainActivity extends Activity {
                         }
                     });
                     
-                    // Через 1.5 секунды скрываем квадраты
                     handler.postDelayed(() -> {
                         if (squareView != null) {
                             squareView.setVisibility(View.GONE);
@@ -156,7 +149,7 @@ public class MainActivity extends Activity {
         public SquareView(Context context) {
             super(context);
             paint = new Paint();
-            paint.setColor(Color.parseColor("#FFFF00")); // Желтый
+            paint.setColor(Color.parseColor("#FFFF00"));
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(10f);
             paint.setAntiAlias(true);
