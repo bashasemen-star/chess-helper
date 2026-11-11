@@ -1,32 +1,39 @@
 package com.humanhelper.chesshelper;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
+    private WindowManager windowManager;
+    private GridView gridView;
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // Координаты доски (для нарезки)
+    // Координаты доски
     private int boardX = 62;
     private int boardY = 936;
     private int cellSize = 135;
@@ -48,7 +55,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("НАРЕЗАТЬ ДОСКУ (ТЕСТ)");
+        btnStart.setText("ЗАПУСТИТЬ ТЕСТ СЕТКИ");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -63,14 +70,15 @@ public class MainActivity extends Activity {
 
     private void startAutoHack() {
         isRunning = true;
-        Toast.makeText(this, "Анализ запущен. Жди скриншот...", Toast.LENGTH_LONG).show();
+        showOverlay();
+        Toast.makeText(this, "Тест сетки запущен. Жди...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 5000); // Каждые 5 секунд
+                    handler.postDelayed(this, 3000); // Каждые 3 секунды
                 }
             }
         }, 1000);
@@ -79,7 +87,6 @@ public class MainActivity extends Activity {
     private void doHack() {
         new Thread(() -> {
             try {
-                // 1. Делаем скриншот с рутом
                 Process process = Runtime.getRuntime().exec("su");
                 DataOutputStream os = new DataOutputStream(process.getOutputStream());
                 os.writeBytes("screencap -p /sdcard/screen.png\n");
@@ -89,44 +96,78 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-                    
-                    // 2. Сохраняем скриншот в папку Download (туда легко попасть)
-                    File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                    File screenshotFile = new File(downloadDir, "chess_screen.png");
-                    try (FileOutputStream fos = new FileOutputStream(screenshotFile)) {
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                    }
-                    
-                    // 3. Нарезаем доску на 64 клетки и сохраняем
-                    File cellsDir = new File(downloadDir, "ChessCells");
-                    if (!cellsDir.exists()) cellsDir.mkdirs();
-                    
-                    for (int row = 0; row < 8; row++) {
-                        for (int col = 0; col < 8; col++) {
-                            int x = boardX + col * cellSize;
-                            int y = boardY + row * cellSize;
-                            
-                            // Проверка, чтобы не выйти за границы картинки
-                            if (x + cellSize > bitmap.getWidth() || y + cellSize > bitmap.getHeight()) continue;
-                            
-                            Bitmap cell = Bitmap.createBitmap(bitmap, x, y, cellSize, cellSize);
-                            File cellFile = new File(cellsDir, "cell_" + row + "_" + col + ".png");
-                            
-                            try (FileOutputStream fos = new FileOutputStream(cellFile)) {
-                                cell.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                            }
+                    runOnUiThread(() -> {
+                        if (gridView != null) {
+                            gridView.setGrid(boardX, boardY, cellSize);
+                            gridView.setVisibility(View.VISIBLE);
                         }
-                    }
+                    });
                     
-                    bitmap.recycle();
-                    runOnUiThread(() -> Toast.makeText(this, "Клетки сохранены в Download/ChessCells", Toast.LENGTH_LONG).show());
+                    handler.postDelayed(() -> {
+                        if (gridView != null) {
+                            gridView.setVisibility(View.GONE);
+                        }
+                    }, 2000);
                 }
                 
             } catch (Exception e) {
                 Log.e("Hack", "Error: " + e.getMessage());
-                runOnUiThread(() -> Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
+    }
+
+    private void showOverlay() {
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        gridView = new GridView(this);
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+        );
+        params.gravity = Gravity.TOP | Gravity.START;
+        try {
+            windowManager.addView(gridView, params);
+            gridView.setVisibility(View.GONE);
+        } catch (Exception e) {
+            Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public class GridView extends View {
+        private Paint paint;
+        private int x, y, size;
+
+        public GridView(Context context) {
+            super(context);
+            paint = new Paint();
+            paint.setColor(Color.parseColor("#FF0000")); // Красный
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(5f); // Толщина линий
+            paint.setAntiAlias(true);
+        }
+
+        public void setGrid(int boardX, int boardY, int cellSize) {
+            this.x = boardX;
+            this.y = boardY;
+            this.size = cellSize;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            // Рисуем сетку 8x8
+            for (int i = 0; i <= 8; i++) {
+                // Горизонтальные линии
+                canvas.drawLine(x, y + i * size, x + 8 * size, y + i * size, paint);
+                // Вертикальные линии
+                canvas.drawLine(x + i * size, y, x + i * size, y + 8 * size, paint);
+            }
+        }
     }
 }
