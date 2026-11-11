@@ -5,14 +5,15 @@ import os
 print("Жди 5 секунд, открой игру...")
 time.sleep(5)
 
-# Делаем скриншот (пока просто для проверки, что он работает)
+# Делаем скриншот (пока просто для проверки)
 subprocess.run(["su", "-c", "screencap -p /sdcard/screen.png"])
 
-# ТЕСТОВЫЙ ХОД (пока просто e2-e4)
-move = "e2e4"
+# КООРДИНАТЫ ДЛЯ e2-e4 (подгони под свой экран)
+# Пример: start_x, start_y, end_x, end_y
+coords = "540,1500,540,1200"
 
-# Сохраняем ход в файл, который прочитает APK
+# Сохраняем координаты в файл
 with open("/sdcard/move.txt", "w") as f:
-    f.write(move)
+    f.write(coords)
 
-print(f"Ход {move} записан в /sdcard/move.txt")
+print(f"Координаты {coords} записаны в /sdcard/move.txt")

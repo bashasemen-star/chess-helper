@@ -73,39 +73,43 @@ public class MainActivity extends Activity {
         params.gravity = Gravity.TOP | Gravity.START;
         try {
             windowManager.addView(arrowView, params);
-            // Запускаем чтение файла каждые 2 секунды
+            
+            // Читаем файл каждые 2 секунды
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    readMoveFromFile();
+                    readCoordsFromFile();
                     new Handler().postDelayed(this, 2000);
                 }
             }, 2000);
-            Toast.makeText(this, "Стрелка включена. Жду ход от скрипта...", Toast.LENGTH_LONG).show();
+            
+            Toast.makeText(this, "Стрелка включена. Жду координаты...", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    private void readMoveFromFile() {
+    private void readCoordsFromFile() {
         try {
             File file = new File("/sdcard/move.txt");
             if (file.exists()) {
                 BufferedReader br = new BufferedReader(new FileReader(file));
-                String move = br.readLine();
+                String line = br.readLine();
                 br.close();
                 
-                if (move != null && !move.isEmpty()) {
-                    // Тут мы должны перевести ход (e2e4) в координаты.
-                    // Пока просто рисуем стрелку в фиксированном месте (e2-e4).
-                    // В будущем здесь будет конвертация.
-                    startX = 540; startY = 1500; // e2
-                    endX = 540; endY = 1200;     // e4
-                    if (arrowView != null) arrowView.invalidate();
+                if (line != null && !line.isEmpty()) {
+                    String[] parts = line.split(",");
+                    if (parts.length == 4) {
+                        startX = Integer.parseInt(parts[0].trim());
+                        startY = Integer.parseInt(parts[1].trim());
+                        endX = Integer.parseInt(parts[2].trim());
+                        endY = Integer.parseInt(parts[3].trim());
+                        if (arrowView != null) arrowView.invalidate();
+                    }
                 }
             }
         } catch (Exception e) {
-            // Игнорируем ошибки чтения
+            // Игнорируем
         }
     }
 
