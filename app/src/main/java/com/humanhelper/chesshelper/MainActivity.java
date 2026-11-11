@@ -26,7 +26,6 @@ import android.widget.Toast;
 
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
@@ -67,7 +66,7 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Чит запущен. Жди стрелку...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Чит запущен. Смотри на стрелку!", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
@@ -91,13 +90,10 @@ public class MainActivity extends Activity {
                 os.flush();
                 process.waitFor();
 
-                // 2. Открываем скриншот (проверяем, что видит приложение)
+                // 2. Проверяем, что скриншот создался
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-                    Log.d("Hack", "Скриншот сделан! Размер: " + bitmap.getWidth() + "x" + bitmap.getHeight());
-                    
-                    // 3. Рисуем тестовую стрелку (e2-e4) по координатам
+                    // 3. Рисуем стрелку e2-e4 (координаты для твоего экрана)
                     int boardX = 0;
                     int boardY = 550;
                     int boardWidth = 1080;
@@ -114,8 +110,6 @@ public class MainActivity extends Activity {
                             arrowView.updatePosition(e2x, e2y, e4x, e4y);
                         }
                     });
-                    
-                    bitmap.recycle();
                 }
                 
             } catch (Exception e) {

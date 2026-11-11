@@ -1,20 +1,22 @@
 import subprocess
 import time
-import os
+from PIL import Image, ImageDraw
 
 print("Жди 5 секунд, открой игру...")
 time.sleep(5)
 
 subprocess.run(["su", "-c", "screencap -p /sdcard/screen.png"])
 
-# КООРДИНАТЫ ДЛЯ e2-e4
-coords = "540,1500,540,1200"
+img = Image.open("/sdcard/screen.png").convert("RGBA")
+draw = ImageDraw.Draw(img)
 
-# Сохраняем в папку приложения (куда у него есть доступ)
-app_dir = "/data/data/com.humanhelper.chesshelper/files"
-os.makedirs(app_dir, exist_ok=True)
+# СИНЯЯ СТРЕЛКА (e2-e4)
+start_x, start_y = 540, 1500
+end_x, end_y = 540, 1200
 
-with open(os.path.join(app_dir, "move.txt"), "w") as f:
-    f.write(coords)
+draw.line((start_x, start_y, end_x, end_y), fill=(92, 156, 230, 255), width=25)
+draw.line((end_x, end_y, end_x - 40, end_y + 60), fill=(92, 156, 230, 255), width=25)
+draw.line((end_x, end_y, end_x + 40, end_y + 60), fill=(92, 156, 230, 255), width=25)
 
-print(f"Координаты {coords} записаны в {app_dir}/move.txt")
+img.save("/sdcard/result.png")
+print("Готово! Смотри /sdcard/result.png")
