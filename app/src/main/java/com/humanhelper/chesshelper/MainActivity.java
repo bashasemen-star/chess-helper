@@ -24,16 +24,9 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
-
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
@@ -41,19 +34,9 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // Координаты доски (подгони под свой экран)
-    private int boardX = 0;
-    private int boardY = 550;
-    private int boardWidth = 1080;
-    private int boardHeight = 1050;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        if (!OpenCVLoader.initDebug()) {
-            Log.e("OpenCV", "OpenCV load failed");
-        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -68,7 +51,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ АВТО-ЧИТ");
+        btnStart.setText("ЗАПУСТИТЬ ЧИТ");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -91,7 +74,7 @@ public class MainActivity extends Activity {
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 3000); // Каждые 3 секунды
+                    handler.postDelayed(this, 3000);
                 }
             }
         }, 1000);
@@ -108,13 +91,16 @@ public class MainActivity extends Activity {
                 os.flush();
                 process.waitFor();
 
-                // 2. Загружаем картинку
+                // 2. Открываем скриншот (проверяем, что видит приложение)
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
                     Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+                    Log.d("Hack", "Скриншот сделан! Размер: " + bitmap.getWidth() + "x" + bitmap.getHeight());
                     
-                    // 3. Рисуем тестовую стрелку (e2-e4) по координатам доски
-                    // Клетка e2: x = boardX + 4 * (boardWidth/8), y = boardY + 6 * (boardHeight/8)
+                    // 3. Рисуем тестовую стрелку (e2-e4) по координатам
+                    int boardX = 0;
+                    int boardY = 550;
+                    int boardWidth = 1080;
                     int cellSize = boardWidth / 8;
                     
                     int e2x = boardX + 4 * cellSize + cellSize/2;
@@ -129,7 +115,6 @@ public class MainActivity extends Activity {
                         }
                     });
                     
-                    // Освобождаем память
                     bitmap.recycle();
                 }
                 
