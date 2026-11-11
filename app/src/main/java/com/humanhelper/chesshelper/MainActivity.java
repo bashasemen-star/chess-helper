@@ -15,13 +15,22 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
+    private WindowManager windowManager;
+    private ArrowView arrowView;
+    private int startX = 540;
+    private int startY = 1600;
+    private int endX = 540;
+    private int endY = 1300;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Проверка разрешения на оверлей
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
@@ -30,10 +39,43 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Показываем оверлей прямо в Activity (без сервиса)
-        WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        ArrowView arrowView = new ArrowView(this);
+        // Интерфейс с кнопками
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER);
 
+        Button btnUp = new Button(this);
+        btnUp.setText("ВВЕРХ");
+        btnUp.setOnClickListener(v -> { endY -= 100; updateArrow(); });
+
+        Button btnDown = new Button(this);
+        btnDown.setText("ВНИЗ");
+        btnDown.setOnClickListener(v -> { endY += 100; updateArrow(); });
+
+        Button btnLeft = new Button(this);
+        btnLeft.setText("ВЛЕВО");
+        btnLeft.setOnClickListener(v -> { endX -= 100; updateArrow(); });
+
+        Button btnRight = new Button(this);
+        btnRight.setText("ВПРАВО");
+        btnRight.setOnClickListener(v -> { endX += 100; updateArrow(); });
+
+        Button btnOn = new Button(this);
+        btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
+        btnOn.setOnClickListener(v -> showOverlay());
+
+        layout.addView(btnOn);
+        layout.addView(btnUp);
+        layout.addView(btnDown);
+        layout.addView(btnLeft);
+        layout.addView(btnRight);
+
+        setContentView(layout);
+    }
+
+    private void showOverlay() {
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        arrowView = new ArrowView(this);
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -44,10 +86,22 @@ public class MainActivity extends Activity {
                 PixelFormat.TRANSLUCENT
         );
         params.gravity = Gravity.TOP | Gravity.START;
-        windowManager.addView(arrowView, params);
+        try {
+            windowManager.addView(arrowView, params);
+            Toast.makeText(this, "Стрелка включена", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
-    public static class ArrowView extends View {
+    private void updateArrow() {
+        if (arrowView != null) {
+            arrowView.invalidate();
+            Toast.makeText(this, "Стрелка перемещена", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public class ArrowView extends View {
         private Paint paint;
         public ArrowView(Context context) {
             super(context);
@@ -61,10 +115,6 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float startX = 540f;
-            float startY = 1600f;
-            float endX = 540f;
-            float endY = 1300f;
             canvas.drawLine(startX, startY, endX, endY, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
