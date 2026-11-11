@@ -3,6 +3,7 @@ package com.humanhelper.chesshelper;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -12,7 +13,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -20,22 +23,29 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+
+import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
-    
-    private int startX = 540;
-    private int startY = 1500;
-    private int endX = 540;
-    private int endY = 1200;
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private boolean isRunning = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        if (!OpenCVLoader.initDebug()) {
+            Log.e("OpenCV", "OpenCV load failed");
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -49,12 +59,62 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        Button btnOn = new Button(this);
-        btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ (АВТО)");
-        btnOn.setOnClickListener(v -> showOverlay());
+        Button btnStart = new Button(this);
+        btnStart.setText("ЗАПУСТИТЬ АВТО-ЧИТ");
+        btnStart.setOnClickListener(v -> {
+            if (!isRunning) {
+                startAutoHack();
+            } else {
+                Toast.makeText(this, "Уже запущено", Toast.LENGTH_SHORT).show();
+            }
+        });
 
-        layout.addView(btnOn);
+        layout.addView(btnStart);
         setContentView(layout);
+    }
+
+    private void startAutoHack() {
+        isRunning = true;
+        showOverlay();
+        Toast.makeText(this, "Чит запущен. Смотри на стрелку!", Toast.LENGTH_LONG).show();
+        
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isRunning) {
+                    doHack();
+                    handler.postDelayed(this, 3000); // Каждые 3 секунды
+                }
+            }
+        }, 1000);
+    }
+
+    private void doHack() {
+        new Thread(() -> {
+            try {
+                // 1. Делаем скриншот с рутом
+                Process process = Runtime.getRuntime().exec("su");
+                DataOutputStream os = new DataOutputStream(process.getOutputStream());
+                os.writeBytes("screencap -p /sdcard/screen.png\n");
+                os.writeBytes("exit\n");
+                os.flush();
+                process.waitFor();
+
+                // 2. Открываем скриншот (в реальности тут нужно OpenCV, но для теста просто двигаем стрелку)
+                // Для теста: просто двигаем стрелку туда-сюда
+                int newX = 540 + (int)(Math.random() * 100 - 50);
+                int newY = 1200 + (int)(Math.random() * 100 - 50);
+                
+                runOnUiThread(() -> {
+                    if (arrowView != null) {
+                        arrowView.updatePosition(newX, newY, newX, newY - 200);
+                    }
+                });
+                
+            } catch (Exception e) {
+                Log.e("Hack", "Error: " + e.getMessage());
+            }
+        }).start();
     }
 
     private void showOverlay() {
@@ -73,48 +133,15 @@ public class MainActivity extends Activity {
         params.gravity = Gravity.TOP | Gravity.START;
         try {
             windowManager.addView(arrowView, params);
-            
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    readCoordsFromFile();
-                    new Handler().postDelayed(this, 2000);
-                }
-            }, 2000);
-            
-            Toast.makeText(this, "Стрелка включена. Жду координаты...", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    private void readCoordsFromFile() {
-        try {
-            // Читаем из внутренней папки приложения
-            File file = new File(getFilesDir(), "move.txt");
-            if (file.exists()) {
-                BufferedReader br = new BufferedReader(new FileReader(file));
-                String line = br.readLine();
-                br.close();
-                
-                if (line != null && !line.isEmpty()) {
-                    String[] parts = line.split(",");
-                    if (parts.length == 4) {
-                        startX = Integer.parseInt(parts[0].trim());
-                        startY = Integer.parseInt(parts[1].trim());
-                        endX = Integer.parseInt(parts[2].trim());
-                        endY = Integer.parseInt(parts[3].trim());
-                        if (arrowView != null) arrowView.invalidate();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Игнорируем
-        }
-    }
-
     public class ArrowView extends View {
         private Paint paint;
+        private int startX = 540, startY = 1500, endX = 540, endY = 1200;
+
         public ArrowView(Context context) {
             super(context);
             paint = new Paint();
@@ -122,6 +149,11 @@ public class MainActivity extends Activity {
             paint.setStyle(Paint.Style.FILL_AND_STROKE);
             paint.setStrokeWidth(25f);
             paint.setAntiAlias(true);
+        }
+
+        public void updatePosition(int sx, int sy, int ex, int ey) {
+            startX = sx; startY = sy; endX = ex; endY = ey;
+            invalidate();
         }
 
         @Override
