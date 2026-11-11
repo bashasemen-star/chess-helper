@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -26,12 +27,24 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CODE = 100;
@@ -42,6 +55,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Инициализация OpenCV
+        if (!OpenCVLoader.initDebug()) {
+            Log.e("OpenCV", "Не удалось загрузить OpenCV");
+        } else {
+            Log.d("OpenCV", "OpenCV успешно загружен");
+        }
+
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
@@ -75,7 +96,6 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
-            // Запускаем сервис для захвата экрана
             Intent serviceIntent = new Intent(this, CaptureService.class);
             serviceIntent.putExtra("resultCode", resultCode);
             serviceIntent.putExtra("data", data);
@@ -117,7 +137,6 @@ public class MainActivity extends Activity {
 
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
-            // Создаем уведомление (обязательно для Android 14+)
             String channelId = "screen_capture";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel channel = new NotificationChannel(channelId, "Screen Capture", NotificationManager.IMPORTANCE_LOW);
@@ -158,7 +177,13 @@ public class MainActivity extends Activity {
             imageReader.setOnImageAvailableListener(reader -> {
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
-                    // Тут будет код OpenCV
+                    // Конвертируем Image в Bitmap
+                    Bitmap bitmap = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
+                    // (Упрощенно, в реальности нужно копировать пиксели)
+                    
+                    // Тут будет код OpenCV для поиска доски
+                    Log.d("Capture", "Скриншот сделан, размер: " + image.getWidth() + "x" + image.getHeight());
+                    
                     image.close();
                 }
             }, new Handler(Looper.getMainLooper()));
