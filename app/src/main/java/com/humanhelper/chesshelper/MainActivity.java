@@ -8,8 +8,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,9 +29,15 @@ import java.io.File;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
-    private ArrowView arrowView;
+    private SquareView squareView;
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
+
+    // Координаты доски (подгони под свой экран)
+    private int boardX = 0;
+    private int boardY = 550;
+    private int boardSize = 1080;
+    private int cellSize = boardSize / 8;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,7 +56,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ ЧИТ");
+        btnStart.setText("ЗАПУСТИТЬ ЧИТ (КВАДРАТЫ)");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -66,14 +72,14 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Чит запущен. Смотри на стрелку!", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Чит запущен. Жди квадраты...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 3000);
+                    handler.postDelayed(this, 2000); // Каждые 2 секунды
                 }
             }
         }, 1000);
@@ -93,23 +99,25 @@ public class MainActivity extends Activity {
                 // 2. Проверяем, что скриншот создался
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    // 3. Рисуем стрелку e2-e4 (координаты для твоего экрана)
-                    int boardX = 0;
-                    int boardY = 550;
-                    int boardWidth = 1080;
-                    int cellSize = boardWidth / 8;
-                    
-                    int e2x = boardX + 4 * cellSize + cellSize/2;
-                    int e2y = boardY + 6 * cellSize + cellSize/2;
-                    
-                    int e4x = boardX + 4 * cellSize + cellSize/2;
-                    int e4y = boardY + 4 * cellSize + cellSize/2;
+                    // 3. Рисуем квадраты на e2 (фигура) и e4 (куда идти)
+                    int e2x = boardX + 4 * cellSize;
+                    int e2y = boardY + 6 * cellSize;
+                    int e4x = boardX + 4 * cellSize;
+                    int e4y = boardY + 4 * cellSize;
                     
                     runOnUiThread(() -> {
-                        if (arrowView != null) {
-                            arrowView.updatePosition(e2x, e2y, e4x, e4y);
+                        if (squareView != null) {
+                            squareView.setSquares(e2x, e2y, e4x, e4y, cellSize);
+                            squareView.setVisibility(View.VISIBLE);
                         }
                     });
+                    
+                    // Через 1.5 секунды скрываем квадраты
+                    handler.postDelayed(() -> {
+                        if (squareView != null) {
+                            squareView.setVisibility(View.GONE);
+                        }
+                    }, 1500);
                 }
                 
             } catch (Exception e) {
@@ -120,7 +128,7 @@ public class MainActivity extends Activity {
 
     private void showOverlay() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        arrowView = new ArrowView(this);
+        squareView = new SquareView(this);
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -133,41 +141,39 @@ public class MainActivity extends Activity {
         );
         params.gravity = Gravity.TOP | Gravity.START;
         try {
-            windowManager.addView(arrowView, params);
+            windowManager.addView(squareView, params);
+            squareView.setVisibility(View.GONE);
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    public class ArrowView extends View {
+    public class SquareView extends View {
         private Paint paint;
-        private int startX = 540, startY = 1500, endX = 540, endY = 1200;
+        private Rect rect1, rect2;
 
-        public ArrowView(Context context) {
+        public SquareView(Context context) {
             super(context);
             paint = new Paint();
-            paint.setColor(Color.parseColor("#5C9CE6"));
-            paint.setStyle(Paint.Style.FILL_AND_STROKE);
-            paint.setStrokeWidth(25f);
+            paint.setColor(Color.parseColor("#FFFF00")); // Желтый
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(10f);
             paint.setAntiAlias(true);
+            rect1 = new Rect();
+            rect2 = new Rect();
         }
 
-        public void updatePosition(int sx, int sy, int ex, int ey) {
-            startX = sx; startY = sy; endX = ex; endY = ey;
+        public void setSquares(int x1, int y1, int x2, int y2, int size) {
+            rect1.set(x1, y1, x1 + size, y1 + size);
+            rect2.set(x2, y2, x2 + size, y2 + size);
             invalidate();
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            canvas.drawLine(startX, startY, endX, endY, paint);
-            paint.setStyle(Paint.Style.FILL);
-            Path path = new Path();
-            path.moveTo(endX, endY);
-            path.lineTo(endX - 40, endY + 60);
-            path.lineTo(endX + 40, endY + 60);
-            path.close();
-            canvas.drawPath(path, paint);
+            canvas.drawRect(rect1, paint);
+            canvas.drawRect(rect2, paint);
         }
     }
 }
