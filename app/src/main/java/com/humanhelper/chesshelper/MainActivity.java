@@ -12,6 +12,7 @@ import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.view.Gravity;
@@ -36,6 +37,8 @@ public class MainActivity extends Activity {
     public static class OverlayService extends Service {
         private WindowManager windowManager;
         private ArrowView arrowView;
+        private Handler handler = new Handler();
+        private boolean isRunning = false;
 
         @Override
         public void onCreate() {
@@ -54,11 +57,42 @@ public class MainActivity extends Activity {
             );
             params.gravity = Gravity.TOP | Gravity.START;
             windowManager.addView(arrowView, params);
+            
+            isRunning = true;
+            handler.postDelayed(runnable, 1000); // Проверка каждую секунду
         }
+
+        private Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isRunning) {
+                    try {
+                        // Если оверлей исчез, добавляем его заново
+                        if (arrowView.getParent() == null) {
+                            windowManager.addView(arrowView, arrowView.getLayoutParams());
+                        }
+                    } catch (Exception e) {
+                        // Игнорируем ошибки
+                    }
+                    handler.postDelayed(this, 1000); // Зацикливаем
+                }
+            }
+        };
 
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
             return START_STICKY;
+        }
+
+        @Override
+        public void onDestroy() {
+            super.onDestroy();
+            isRunning = false;
+            try {
+                if (arrowView != null && arrowView.getParent() != null) {
+                    windowManager.removeView(arrowView);
+                }
+            } catch (Exception e) {}
         }
 
         @Override
