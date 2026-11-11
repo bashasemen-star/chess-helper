@@ -23,11 +23,15 @@ public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
     
-    // Координаты (меняются кнопками)
     private int startX = 540;
     private int startY = 1600;
     private int endX = 540;
     private int endY = 1300;
+    
+    private int savedStartX = 540;
+    private int savedStartY = 1600;
+    private int savedEndX = 540;
+    private int savedEndY = 1300;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,12 +49,27 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        // ВКЛЮЧИТЬ
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
         btnOn.setOnClickListener(v -> showOverlay());
 
-        // ДВИЖЕНИЕ НИЗА (начало)
+        Button btnSave = new Button(this);
+        btnSave.setText("СОХРАНИТЬ КООРДИНАТЫ");
+        btnSave.setOnClickListener(v -> {
+            savedStartX = startX; savedStartY = startY;
+            savedEndX = endX; savedEndY = endY;
+            Toast.makeText(this, "Координаты сохранены", Toast.LENGTH_SHORT).show();
+        });
+
+        Button btnTest = new Button(this);
+        btnTest.setText("ТЕСТ: ПОКАЗАТЬ ХОД");
+        btnTest.setOnClickListener(v -> {
+            startX = savedStartX; startY = savedStartY;
+            endX = savedEndX; endY = savedEndY;
+            if (arrowView != null) arrowView.invalidate();
+            Toast.makeText(this, "Стрелка на сохраненных координатах", Toast.LENGTH_SHORT).show();
+        });
+
         Button btnStartUp = new Button(this);
         btnStartUp.setText("НИЗ ВВЕРХ");
         btnStartUp.setOnClickListener(v -> { startY -= 50; updateArrow(); });
@@ -59,15 +78,6 @@ public class MainActivity extends Activity {
         btnStartDown.setText("НИЗ ВНИЗ");
         btnStartDown.setOnClickListener(v -> { startY += 50; updateArrow(); });
 
-        Button btnStartLeft = new Button(this);
-        btnStartLeft.setText("НИЗ ВЛЕВО");
-        btnStartLeft.setOnClickListener(v -> { startX -= 50; updateArrow(); });
-
-        Button btnStartRight = new Button(this);
-        btnStartRight.setText("НИЗ ВПРАВО");
-        btnStartRight.setOnClickListener(v -> { startX += 50; updateArrow(); });
-
-        // ДВИЖЕНИЕ ВЕРХА (конец)
         Button btnEndUp = new Button(this);
         btnEndUp.setText("ВЕРХ ВВЕРХ");
         btnEndUp.setOnClickListener(v -> { endY -= 50; updateArrow(); });
@@ -76,23 +86,13 @@ public class MainActivity extends Activity {
         btnEndDown.setText("ВЕРХ ВНИЗ");
         btnEndDown.setOnClickListener(v -> { endY += 50; updateArrow(); });
 
-        Button btnEndLeft = new Button(this);
-        btnEndLeft.setText("ВЕРХ ВЛЕВО");
-        btnEndLeft.setOnClickListener(v -> { endX -= 50; updateArrow(); });
-
-        Button btnEndRight = new Button(this);
-        btnEndRight.setText("ВЕРХ ВПРАВО");
-        btnEndRight.setOnClickListener(v -> { endX += 50; updateArrow(); });
-
         layout.addView(btnOn);
+        layout.addView(btnSave);
+        layout.addView(btnTest);
         layout.addView(btnStartUp);
         layout.addView(btnStartDown);
-        layout.addView(btnStartLeft);
-        layout.addView(btnStartRight);
         layout.addView(btnEndUp);
         layout.addView(btnEndDown);
-        layout.addView(btnEndLeft);
-        layout.addView(btnEndRight);
         setContentView(layout);
     }
 
@@ -112,16 +112,13 @@ public class MainActivity extends Activity {
         params.gravity = Gravity.TOP | Gravity.START;
         try {
             windowManager.addView(arrowView, params);
-            Toast.makeText(this, "Стрелка включена", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
     private void updateArrow() {
-        if (arrowView != null) {
-            arrowView.invalidate();
-        }
+        if (arrowView != null) arrowView.invalidate();
     }
 
     public class ArrowView extends View {
