@@ -31,9 +31,9 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // НОВЫЕ КООРДИНАТЫ (сдвиг влево на половину клетки и чуть вниз)
-    private int boardX = 67;
-    private int boardY = 950;
+    // ТОЧНЫЕ КООРДИНАТЫ (сдвинули на 10 пикселей влево и вверх)
+    private int boardX = 57;
+    private int boardY = 940;
     private int cellSize = 135;
 
     @Override
@@ -94,7 +94,6 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    // Квадраты на e2 и e4
                     int e2x = boardX + 4 * cellSize;
                     int e2y = boardY + 6 * cellSize;
                     int e4x = boardX + 4 * cellSize;
