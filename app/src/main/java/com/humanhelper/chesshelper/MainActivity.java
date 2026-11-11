@@ -31,9 +31,9 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // ТОЧНЫЕ КООРДИНАТЫ (сдвинули на 10 пикселей влево и вверх)
-    private int boardX = 57;
-    private int boardY = 940;
+    // НОВЫЕ КООРДИНАТЫ (сдвиг вправо на 5, вверх на 4)
+    private int boardX = 62; 
+    private int boardY = 936;
     private int cellSize = 135;
 
     @Override
@@ -148,9 +148,10 @@ public class MainActivity extends Activity {
         public SquareView(Context context) {
             super(context);
             paint = new Paint();
-            paint.setColor(Color.parseColor("#FFFF00"));
+            // КРАСНЫЙ ЦВЕТ
+            paint.setColor(Color.parseColor("#FF0000")); 
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(10f);
+            paint.setStrokeWidth(15f); // Квадрат стал толще (больше)
             paint.setAntiAlias(true);
             rect1 = new Rect();
             rect2 = new Rect();
