@@ -74,7 +74,6 @@ public class MainActivity extends Activity {
         try {
             windowManager.addView(arrowView, params);
             
-            // Читаем файл каждые 2 секунды
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -91,7 +90,8 @@ public class MainActivity extends Activity {
 
     private void readCoordsFromFile() {
         try {
-            File file = new File("/sdcard/move.txt");
+            // Читаем из внутренней папки приложения
+            File file = new File(getFilesDir(), "move.txt");
             if (file.exists()) {
                 BufferedReader br = new BufferedReader(new FileReader(file));
                 String line = br.readLine();

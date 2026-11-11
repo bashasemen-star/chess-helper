@@ -5,15 +5,16 @@ import os
 print("Жди 5 секунд, открой игру...")
 time.sleep(5)
 
-# Делаем скриншот (пока просто для проверки)
 subprocess.run(["su", "-c", "screencap -p /sdcard/screen.png"])
 
-# КООРДИНАТЫ ДЛЯ e2-e4 (подгони под свой экран)
-# Пример: start_x, start_y, end_x, end_y
+# КООРДИНАТЫ ДЛЯ e2-e4
 coords = "540,1500,540,1200"
 
-# Сохраняем координаты в файл
-with open("/sdcard/move.txt", "w") as f:
+# Сохраняем в папку приложения (куда у него есть доступ)
+app_dir = "/data/data/com.humanhelper.chesshelper/files"
+os.makedirs(app_dir, exist_ok=True)
+
+with open(os.path.join(app_dir, "move.txt"), "w") as f:
     f.write(coords)
 
-print(f"Координаты {coords} записаны в /sdcard/move.txt")
+print(f"Координаты {coords} записаны в {app_dir}/move.txt")
