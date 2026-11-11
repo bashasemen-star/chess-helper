@@ -3,6 +3,8 @@ package com.humanhelper.chesshelper;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -11,6 +13,7 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -24,6 +27,7 @@ import android.widget.Toast;
 
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
@@ -31,10 +35,16 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // НОВЫЕ КООРДИНАТЫ (сдвиг вправо на 5, вверх на 4)
-    private int boardX = 62; 
-    private int boardY = 936;
+    // Координаты квадратов (настроены)
+    private int startX = 540;
+    private int startY = 1540;
+    private int endX = 600;
+    private int endY = 1230;
     private int cellSize = 135;
+
+    // Координаты доски для нарезки
+    private int boardX = 62;
+    private int boardY = 936;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +63,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ ЧИТ (КВАДРАТЫ)");
+        btnStart.setText("ЗАПУСТИТЬ ЧИТ (КВАДРАТЫ + АНАЛИЗ)");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -69,14 +79,14 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Чит запущен. Жди квадраты...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Чит запущен. Жди квадраты и анализ...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 2000);
+                    handler.postDelayed(this, 5000); // Каждые 5 секунд
                 }
             }
         }, 1000);
@@ -94,18 +104,33 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    int e2x = boardX + 4 * cellSize;
-                    int e2y = boardY + 6 * cellSize;
-                    int e4x = boardX + 4 * cellSize;
-                    int e4y = boardY + 4 * cellSize;
-                    
+                    // Рисуем квадраты
                     runOnUiThread(() -> {
                         if (squareView != null) {
-                            squareView.setSquares(e2x, e2y, e4x, e4y, cellSize);
+                            squareView.setSquares(startX, startY, endX, endY, cellSize);
                             squareView.setVisibility(View.VISIBLE);
                         }
                     });
                     
+                    // Сохраняем клетки для анализа
+                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+                    File outputDir = new File(Environment.getExternalStorageDirectory(), "ChessCells");
+                    if (!outputDir.exists()) outputDir.mkdirs();
+                    
+                    for (int row = 0; row < 8; row++) {
+                        for (int col = 0; col < 8; col++) {
+                            int x = boardX + col * cellSize;
+                            int y = boardY + row * cellSize;
+                            Bitmap cell = Bitmap.createBitmap(bitmap, x, y, cellSize, cellSize);
+                            File cellFile = new File(outputDir, "cell_" + row + "_" + col + ".png");
+                            try (FileOutputStream fos = new FileOutputStream(cellFile)) {
+                                cell.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                            }
+                        }
+                    }
+                    bitmap.recycle();
+                    
+                    // Скрываем квадраты через 1.5 секунды
                     handler.postDelayed(() -> {
                         if (squareView != null) {
                             squareView.setVisibility(View.GONE);
@@ -148,10 +173,9 @@ public class MainActivity extends Activity {
         public SquareView(Context context) {
             super(context);
             paint = new Paint();
-            // КРАСНЫЙ ЦВЕТ
-            paint.setColor(Color.parseColor("#FF0000")); 
+            paint.setColor(Color.parseColor("#FF0000"));
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(15f); // Квадрат стал толще (больше)
+            paint.setStrokeWidth(15f);
             paint.setAntiAlias(true);
             rect1 = new Rect();
             rect2 = new Rect();
