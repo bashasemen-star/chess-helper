@@ -22,6 +22,12 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
+    
+    // Текущие координаты стрелки (в пикселях)
+    private int startX = 540;
+    private int startY = 1600;
+    private int endX = 540;
+    private int endY = 1300;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,8 +46,19 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnTest = new Button(this);
-        btnTest.setText("ТЕСТ ДВИЖКА");
-        btnTest.setOnClickListener(v -> testEngine());
+        btnTest.setText("ПОКАЗАТЬ ХОД (e2-e4)");
+        btnTest.setOnClickListener(v -> {
+            // Тестовый ход e2-e4
+            // Координаты для доски (примерные, подгони под свой экран)
+            // e2: x = 540 (центр), y = 1600
+            // e4: x = 540, y = 1300
+            startX = 540;
+            startY = 1600;
+            endX = 540;
+            endY = 1300;
+            updateArrow();
+            Toast.makeText(this, "Стрелка на e2-e4", Toast.LENGTH_SHORT).show();
+        });
 
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
@@ -50,11 +67,6 @@ public class MainActivity extends Activity {
         layout.addView(btnTest);
         layout.addView(btnOn);
         setContentView(layout);
-    }
-
-    private void testEngine() {
-        // Просто выводим тестовый ход (заглушка, чтобы доказать, что логика работает)
-        Toast.makeText(this, "Движок работает! Лучший ход: e2-e4", Toast.LENGTH_LONG).show();
     }
 
     private void showOverlay() {
@@ -78,6 +90,12 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void updateArrow() {
+        if (arrowView != null) {
+            arrowView.invalidate();
+        }
+    }
+
     public class ArrowView extends View {
         private Paint paint;
         public ArrowView(Context context) {
@@ -92,12 +110,13 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            canvas.drawLine(540, 1600, 540, 1300, paint);
+            // Рисуем стрелку по текущим координатам
+            canvas.drawLine(startX, startY, endX, endY, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
-            path.moveTo(540, 1300);
-            path.lineTo(500, 1360);
-            path.lineTo(580, 1360);
+            path.moveTo(endX, endY);
+            path.lineTo(endX - 40, endY + 60);
+            path.lineTo(endX + 40, endY + 60);
             path.close();
             canvas.drawPath(path, paint);
         }
