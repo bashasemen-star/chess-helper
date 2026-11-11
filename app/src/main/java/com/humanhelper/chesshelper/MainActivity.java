@@ -31,10 +31,10 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // СДВИГАЕМ ДОСКУ ВПРАВО (на 1 клетку)
-    private int boardX = 135; // Сдвиг вправо
-    private int boardY = 900; // Сдвиг вниз (уже настроен)
-    private int cellSize = 135; // Размер клетки
+    // НОВЫЕ КООРДИНАТЫ (сдвиг влево на половину клетки и чуть вниз)
+    private int boardX = 67;
+    private int boardY = 950;
+    private int cellSize = 135;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    // Квадраты на e2 и e4 (с учетом сдвига boardX)
+                    // Квадраты на e2 и e4
                     int e2x = boardX + 4 * cellSize;
                     int e2y = boardY + 6 * cellSize;
                     int e4x = boardX + 4 * cellSize;
