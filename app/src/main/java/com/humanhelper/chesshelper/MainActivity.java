@@ -11,10 +11,7 @@ import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -22,20 +19,15 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.move.Move;
+import com.github.bhlangonijr.chesslib.move.MoveGenerator;
+
+import java.util.List;
 
 public class MainActivity extends Activity {
-    private static final String TAG = "ChessHelper";
     private WindowManager windowManager;
     private ArrowView arrowView;
-    private Process stockfishProcess;
-    private OutputStreamWriter stockfishWriter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,8 +46,8 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnTest = new Button(this);
-        btnTest.setText("ТЕСТ STOCKFISH");
-        btnTest.setOnClickListener(v -> testStockfish());
+        btnTest.setText("ТЕСТ ДВИЖКА");
+        btnTest.setOnClickListener(v -> testEngine());
 
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
@@ -64,54 +56,20 @@ public class MainActivity extends Activity {
         layout.addView(btnTest);
         layout.addView(btnOn);
         setContentView(layout);
-        
-        // Запускаем движок в фоне
-        new Thread(this::startStockfish).start();
     }
 
-    private void startStockfish() {
+    private void testEngine() {
         try {
-            // Копируем движок из assets во внутреннюю память (чтобы можно было запустить)
-            File engineFile = new File(getFilesDir(), "stockfish");
-            if (!engineFile.exists()) {
-                InputStream is = getAssets().open("stockfish");
-                FileOutputStream fos = new FileOutputStream(engineFile);
-                byte[] buffer = new byte[1024];
-                int length;
-                while ((length = is.read(buffer)) > 0) {
-                    fos.write(buffer, 0, length);
-                }
-                fos.close();
-                is.close();
-                engineFile.setExecutable(true);
-            }
-
-            stockfishProcess = Runtime.getRuntime().exec(engineFile.getAbsolutePath());
-            stockfishWriter = new OutputStreamWriter(stockfishProcess.getOutputStream());
-            
-            BufferedReader reader = new BufferedReader(new InputStreamReader(stockfishProcess.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                Log.d(TAG, "Stockfish: " + line);
+            Board board = new Board();
+            List<Move> moves = MoveGenerator.generateLegalMoves(board);
+            if (!moves.isEmpty()) {
+                Move bestMove = moves.get(0);
+                Toast.makeText(this, "Движок работает! Ход: " + bestMove, Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Нет доступных ходов", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error starting stockfish", e);
-        }
-    }
-
-    private void testStockfish() {
-        if (stockfishWriter == null) {
-            Toast.makeText(this, "Движок еще не готов", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        try {
-            stockfishWriter.write("uci\n");
-            stockfishWriter.write("position startpos\n");
-            stockfishWriter.write("go depth 10\n");
-            stockfishWriter.flush();
-            Toast.makeText(this, "Запрос отправлен. Смотри логи!", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            e.printStackTrace();
+            Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
