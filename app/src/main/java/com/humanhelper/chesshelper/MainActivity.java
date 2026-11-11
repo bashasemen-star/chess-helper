@@ -1,44 +1,34 @@
 package com.humanhelper.chesshelper;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PixelFormat;
-import android.graphics.Rect;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
-    private WindowManager windowManager;
-    private SquareView squareView;
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // Квадрат на e2 (нижний, стоит идеально)
-    private int startX = 540;
-    private int startY = 1540;
-
-    // Квадрат на e4 (верхний, сдвинут вправо и вверх)
-    private int endX = 675; 
-    private int endY = 1230; 
-
+    // Координаты доски (для нарезки)
+    private int boardX = 62;
+    private int boardY = 936;
     private int cellSize = 135;
 
     @Override
@@ -58,7 +48,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ ЧИТ (КВАДРАТЫ)");
+        btnStart.setText("НАРЕЗАТЬ ДОСКУ (ТЕСТ)");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -73,15 +63,14 @@ public class MainActivity extends Activity {
 
     private void startAutoHack() {
         isRunning = true;
-        showOverlay();
-        Toast.makeText(this, "Чит запущен. Жди квадраты...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Анализ запущен. Жди скриншот...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 2000); // Каждые 2 секунды
+                    handler.postDelayed(this, 5000); // Каждые 5 секунд
                 }
             }
         }, 1000);
@@ -100,75 +89,44 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    // 2. Рисуем квадраты (просто появляются и исчезают)
-                    runOnUiThread(() -> {
-                        if (squareView != null) {
-                            squareView.setSquares(startX, startY, endX, endY, cellSize);
-                            squareView.setVisibility(View.VISIBLE);
-                        }
-                    });
+                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
                     
-                    handler.postDelayed(() -> {
-                        if (squareView != null) {
-                            squareView.setVisibility(View.GONE);
+                    // 2. Сохраняем скриншот в папку Download (туда легко попасть)
+                    File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    File screenshotFile = new File(downloadDir, "chess_screen.png");
+                    try (FileOutputStream fos = new FileOutputStream(screenshotFile)) {
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    }
+                    
+                    // 3. Нарезаем доску на 64 клетки и сохраняем
+                    File cellsDir = new File(downloadDir, "ChessCells");
+                    if (!cellsDir.exists()) cellsDir.mkdirs();
+                    
+                    for (int row = 0; row < 8; row++) {
+                        for (int col = 0; col < 8; col++) {
+                            int x = boardX + col * cellSize;
+                            int y = boardY + row * cellSize;
+                            
+                            // Проверка, чтобы не выйти за границы картинки
+                            if (x + cellSize > bitmap.getWidth() || y + cellSize > bitmap.getHeight()) continue;
+                            
+                            Bitmap cell = Bitmap.createBitmap(bitmap, x, y, cellSize, cellSize);
+                            File cellFile = new File(cellsDir, "cell_" + row + "_" + col + ".png");
+                            
+                            try (FileOutputStream fos = new FileOutputStream(cellFile)) {
+                                cell.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                            }
                         }
-                    }, 1500);
+                    }
+                    
+                    bitmap.recycle();
+                    runOnUiThread(() -> Toast.makeText(this, "Клетки сохранены в Download/ChessCells", Toast.LENGTH_LONG).show());
                 }
                 
             } catch (Exception e) {
                 Log.e("Hack", "Error: " + e.getMessage());
+                runOnUiThread(() -> Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
-    }
-
-    private void showOverlay() {
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        squareView = new SquareView(this);
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT
-        );
-        params.gravity = Gravity.TOP | Gravity.START;
-        try {
-            windowManager.addView(squareView, params);
-            squareView.setVisibility(View.GONE);
-        } catch (Exception e) {
-            Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    public class SquareView extends View {
-        private Paint paint;
-        private Rect rect1, rect2;
-
-        public SquareView(Context context) {
-            super(context);
-            paint = new Paint();
-            paint.setColor(Color.parseColor("#FF0000"));
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(15f);
-            paint.setAntiAlias(true);
-            rect1 = new Rect();
-            rect2 = new Rect();
-        }
-
-        public void setSquares(int x1, int y1, int x2, int y2, int size) {
-            rect1.set(x1, y1, x1 + size, y1 + size);
-            rect2.set(x2, y2, x2 + size, y2 + size);
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            canvas.drawRect(rect1, paint);
-            canvas.drawRect(rect2, paint);
-        }
     }
 }
