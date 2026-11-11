@@ -78,6 +78,14 @@ public class MainActivity extends Activity {
         btnStartDown.setText("НИЗ ВНИЗ");
         btnStartDown.setOnClickListener(v -> { startY += 50; updateArrow(); });
 
+        Button btnStartLeft = new Button(this);
+        btnStartLeft.setText("НИЗ ВЛЕВО");
+        btnStartLeft.setOnClickListener(v -> { startX -= 50; updateArrow(); });
+
+        Button btnStartRight = new Button(this);
+        btnStartRight.setText("НИЗ ВПРАВО");
+        btnStartRight.setOnClickListener(v -> { startX += 50; updateArrow(); });
+
         Button btnEndUp = new Button(this);
         btnEndUp.setText("ВЕРХ ВВЕРХ");
         btnEndUp.setOnClickListener(v -> { endY -= 50; updateArrow(); });
@@ -86,13 +94,25 @@ public class MainActivity extends Activity {
         btnEndDown.setText("ВЕРХ ВНИЗ");
         btnEndDown.setOnClickListener(v -> { endY += 50; updateArrow(); });
 
+        Button btnEndLeft = new Button(this);
+        btnEndLeft.setText("ВЕРХ ВЛЕВО");
+        btnEndLeft.setOnClickListener(v -> { endX -= 50; updateArrow(); });
+
+        Button btnEndRight = new Button(this);
+        btnEndRight.setText("ВЕРХ ВПРАВО");
+        btnEndRight.setOnClickListener(v -> { endX += 50; updateArrow(); });
+
         layout.addView(btnOn);
         layout.addView(btnSave);
         layout.addView(btnTest);
         layout.addView(btnStartUp);
         layout.addView(btnStartDown);
+        layout.addView(btnStartLeft);
+        layout.addView(btnStartRight);
         layout.addView(btnEndUp);
         layout.addView(btnEndDown);
+        layout.addView(btnEndLeft);
+        layout.addView(btnEndRight);
         setContentView(layout);
     }
 
