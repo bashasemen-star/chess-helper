@@ -11,7 +11,10 @@ import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -19,14 +22,20 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+
 public class MainActivity extends Activity {
+    private static final String TAG = "ChessHelper";
     private WindowManager windowManager;
     private ArrowView arrowView;
-    // Координаты начала и конца стрелки (внутри окна 1080x1080)
-    private int startX = 540;
-    private int startY = 800; 
-    private int endX = 540;
-    private int endY = 500;
+    private Process stockfishProcess;
+    private OutputStreamWriter stockfishWriter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,68 +53,86 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        Button btnUp = new Button(this);
-        btnUp.setText("ВВЕРХ");
-        btnUp.setOnClickListener(v -> { endY -= 50; updateArrow(); });
-
-        Button btnDown = new Button(this);
-        btnDown.setText("ВНИЗ");
-        btnDown.setOnClickListener(v -> { endY += 50; updateArrow(); });
-
-        Button btnLeft = new Button(this);
-        btnLeft.setText("ВЛЕВО");
-        btnLeft.setOnClickListener(v -> { endX -= 50; updateArrow(); });
-
-        Button btnRight = new Button(this);
-        btnRight.setText("ВПРАВО");
-        btnRight.setOnClickListener(v -> { endX += 50; updateArrow(); });
+        Button btnTest = new Button(this);
+        btnTest.setText("ТЕСТ STOCKFISH");
+        btnTest.setOnClickListener(v -> testStockfish());
 
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
         btnOn.setOnClickListener(v -> showOverlay());
 
+        layout.addView(btnTest);
         layout.addView(btnOn);
-        layout.addView(btnUp);
-        layout.addView(btnDown);
-        layout.addView(btnLeft);
-        layout.addView(btnRight);
-
         setContentView(layout);
+        
+        // Запускаем движок в фоне
+        new Thread(this::startStockfish).start();
+    }
+
+    private void startStockfish() {
+        try {
+            // Копируем движок из assets во внутреннюю память (чтобы можно было запустить)
+            File engineFile = new File(getFilesDir(), "stockfish");
+            if (!engineFile.exists()) {
+                InputStream is = getAssets().open("stockfish");
+                FileOutputStream fos = new FileOutputStream(engineFile);
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = is.read(buffer)) > 0) {
+                    fos.write(buffer, 0, length);
+                }
+                fos.close();
+                is.close();
+                engineFile.setExecutable(true);
+            }
+
+            stockfishProcess = Runtime.getRuntime().exec(engineFile.getAbsolutePath());
+            stockfishWriter = new OutputStreamWriter(stockfishProcess.getOutputStream());
+            
+            BufferedReader reader = new BufferedReader(new InputStreamReader(stockfishProcess.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Log.d(TAG, "Stockfish: " + line);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting stockfish", e);
+        }
+    }
+
+    private void testStockfish() {
+        if (stockfishWriter == null) {
+            Toast.makeText(this, "Движок еще не готов", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            stockfishWriter.write("uci\n");
+            stockfishWriter.write("position startpos\n");
+            stockfishWriter.write("go depth 10\n");
+            stockfishWriter.flush();
+            Toast.makeText(this, "Запрос отправлен. Смотри логи!", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void showOverlay() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         arrowView = new ArrowView(this);
-        
-        // Окно размером с доску (1080x1080)
-        int size = 1080;
-        
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                size,
-                size,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
         );
-        
         params.gravity = Gravity.TOP | Gravity.START;
-        params.x = 0;
-        params.y = 400; // Сдвиг вниз, чтобы окно было над доской (подгони под свой экран)
-        
         try {
             windowManager.addView(arrowView, params);
-            Toast.makeText(this, "Стрелка включена", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void updateArrow() {
-        if (arrowView != null) {
-            arrowView.invalidate();
         }
     }
 
@@ -123,13 +150,12 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            // Рисуем стрелку только внутри окна
-            canvas.drawLine(startX, startY, endX, endY, paint);
+            canvas.drawLine(540, 1600, 540, 1300, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
-            path.moveTo(endX, endY);
-            path.lineTo(endX - 40, endY + 60);
-            path.lineTo(endX + 40, endY + 60);
+            path.moveTo(540, 1300);
+            path.lineTo(500, 1360);
+            path.lineTo(580, 1360);
             path.close();
             canvas.drawPath(path, paint);
         }
