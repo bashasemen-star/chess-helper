@@ -75,20 +75,29 @@ public class MainActivity extends Activity {
     private void showOverlay() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         arrowView = new ArrowView(this);
+        
+        // Устанавливаем размер окна: только доска (например, 1080x1080)
+        int size = 1080; // Ширина доски. Если доска уже, можно сделать 900 или 800.
+        
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
+                size,
+                size,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | // ВАЖНО: пропускает касания
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
         );
+        
+        // Позиционируем окно (например, по центру экрана)
         params.gravity = Gravity.TOP | Gravity.START;
+        params.x = 0;
+        params.y = 400; // Сдвиг вниз, чтобы окно было над доской
+        
         try {
             windowManager.addView(arrowView, params);
-            Toast.makeText(this, "Стрелка включена (тачи работают)", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Стрелка включена", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
