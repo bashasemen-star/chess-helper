@@ -35,15 +35,10 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.move.Move;
+import com.github.bhlangonijr.chesslib.move.MoveGenerator;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
@@ -55,14 +50,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Инициализация OpenCV
-        if (!OpenCVLoader.initDebug()) {
-            Log.e("OpenCV", "Не удалось загрузить OpenCV");
-        } else {
-            Log.d("OpenCV", "OpenCV успешно загружен");
-        }
-
         projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
@@ -134,6 +121,7 @@ public class MainActivity extends Activity {
         private MediaProjection mediaProjection;
         private ImageReader imageReader;
         private VirtualDisplay virtualDisplay;
+        private Board board = new Board();
 
         @Override
         public int onStartCommand(Intent intent, int flags, int startId) {
@@ -177,13 +165,9 @@ public class MainActivity extends Activity {
             imageReader.setOnImageAvailableListener(reader -> {
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
-                    // Конвертируем Image в Bitmap
-                    Bitmap bitmap = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
-                    // (Упрощенно, в реальности нужно копировать пиксели)
-                    
                     // Тут будет код OpenCV для поиска доски
+                    // Пока просто выводим сообщение, что скриншот сделан
                     Log.d("Capture", "Скриншот сделан, размер: " + image.getWidth() + "x" + image.getHeight());
-                    
                     image.close();
                 }
             }, new Handler(Looper.getMainLooper()));
