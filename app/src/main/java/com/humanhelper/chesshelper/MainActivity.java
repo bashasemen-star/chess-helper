@@ -13,7 +13,6 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -35,16 +34,15 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // Координаты квадратов (настроены)
+    // НИЖНИЙ КВАДРАТ (e2) - идеален
     private int startX = 540;
     private int startY = 1540;
-    private int endX = 600;
-    private int endY = 1230;
-    private int cellSize = 135;
 
-    // Координаты доски для нарезки
-    private int boardX = 62;
-    private int boardY = 936;
+    // ВЕРХНИЙ КВАДРАТ (e4) - сдвинули вправо на 1 клетку (135px)
+    private int endX = 675; 
+    private int endY = 1230; 
+
+    private int cellSize = 135;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +61,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ ЧИТ (КВАДРАТЫ + АНАЛИЗ)");
+        btnStart.setText("ЗАПУСТИТЬ ЧИТ (КВАДРАТЫ)");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -79,14 +77,14 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Чит запущен. Жди квадраты и анализ...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Чит запущен. Жди квадраты...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 5000); // Каждые 5 секунд
+                    handler.postDelayed(this, 2000);
                 }
             }
         }, 1000);
@@ -104,6 +102,14 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
+                    // Сохраняем скриншот во внутреннюю папку приложения (туда есть доступ)
+                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+                    File internalFile = new File(getFilesDir(), "screen.png");
+                    try (FileOutputStream fos = new FileOutputStream(internalFile)) {
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    }
+                    bitmap.recycle();
+                    
                     // Рисуем квадраты
                     runOnUiThread(() -> {
                         if (squareView != null) {
@@ -112,25 +118,6 @@ public class MainActivity extends Activity {
                         }
                     });
                     
-                    // Сохраняем клетки для анализа
-                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-                    File outputDir = new File(Environment.getExternalStorageDirectory(), "ChessCells");
-                    if (!outputDir.exists()) outputDir.mkdirs();
-                    
-                    for (int row = 0; row < 8; row++) {
-                        for (int col = 0; col < 8; col++) {
-                            int x = boardX + col * cellSize;
-                            int y = boardY + row * cellSize;
-                            Bitmap cell = Bitmap.createBitmap(bitmap, x, y, cellSize, cellSize);
-                            File cellFile = new File(outputDir, "cell_" + row + "_" + col + ".png");
-                            try (FileOutputStream fos = new FileOutputStream(cellFile)) {
-                                cell.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                            }
-                        }
-                    }
-                    bitmap.recycle();
-                    
-                    // Скрываем квадраты через 1.5 секунды
                     handler.postDelayed(() -> {
                         if (squareView != null) {
                             squareView.setVisibility(View.GONE);
