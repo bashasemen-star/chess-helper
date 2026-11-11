@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -26,18 +27,25 @@ import android.widget.Toast;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
+
+    // Координаты доски (подгони под свой экран)
+    private int boardX = 0;
+    private int boardY = 550;
+    private int boardWidth = 1080;
+    private int boardHeight = 1050;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +84,7 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Чит запущен. Смотри на стрелку!", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Чит запущен. Жди стрелку...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
@@ -100,16 +108,30 @@ public class MainActivity extends Activity {
                 os.flush();
                 process.waitFor();
 
-                // 2. Открываем скриншот (в реальности тут нужно OpenCV, но для теста просто двигаем стрелку)
-                // Для теста: просто двигаем стрелку туда-сюда
-                int newX = 540 + (int)(Math.random() * 100 - 50);
-                int newY = 1200 + (int)(Math.random() * 100 - 50);
-                
-                runOnUiThread(() -> {
-                    if (arrowView != null) {
-                        arrowView.updatePosition(newX, newY, newX, newY - 200);
-                    }
-                });
+                // 2. Загружаем картинку
+                File imgFile = new File("/sdcard/screen.png");
+                if (imgFile.exists()) {
+                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+                    
+                    // 3. Рисуем тестовую стрелку (e2-e4) по координатам доски
+                    // Клетка e2: x = boardX + 4 * (boardWidth/8), y = boardY + 6 * (boardHeight/8)
+                    int cellSize = boardWidth / 8;
+                    
+                    int e2x = boardX + 4 * cellSize + cellSize/2;
+                    int e2y = boardY + 6 * cellSize + cellSize/2;
+                    
+                    int e4x = boardX + 4 * cellSize + cellSize/2;
+                    int e4y = boardY + 4 * cellSize + cellSize/2;
+                    
+                    runOnUiThread(() -> {
+                        if (arrowView != null) {
+                            arrowView.updatePosition(e2x, e2y, e4x, e4y);
+                        }
+                    });
+                    
+                    // Освобождаем память
+                    bitmap.recycle();
+                }
                 
             } catch (Exception e) {
                 Log.e("Hack", "Error: " + e.getMessage());
