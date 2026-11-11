@@ -40,9 +40,6 @@ import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
-import java.io.File;
-import java.io.FileOutputStream;
-
 public class MainActivity extends Activity {
     private static final int REQUEST_CODE = 100;
     private WindowManager windowManager;
@@ -72,7 +69,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnCapture = new Button(this);
-        btnCapture.setText("ЗАХВАТИТЬ ЭКРАН (ТЕСТ)");
+        btnCapture.setText("ЗАХВАТИТЬ ЭКРАН (ТЕСТ СЕТКИ)");
         btnCapture.setOnClickListener(v -> {
             startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_CODE);
         });
@@ -139,7 +136,7 @@ public class MainActivity extends Activity {
             }
             Notification notification = new Notification.Builder(this, channelId)
                     .setContentTitle("Захват экрана")
-                    .setContentText("Сохранение скриншота...")
+                    .setContentText("Анализ доски...")
                     .setSmallIcon(android.R.drawable.ic_menu_camera)
                     .build();
             startForeground(1, notification);
@@ -170,18 +167,14 @@ public class MainActivity extends Activity {
             imageReader.setOnImageAvailableListener(reader -> {
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
+                    // Конвертируем в Bitmap и Mat (OpenCV)
                     Bitmap bitmap = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
+                    Mat mat = new Mat();
+                    Utils.bitmapToMat(bitmap, mat);
                     
-                    try {
-                        // Сохраняем скриншот в файл
-                        File file = new File("/sdcard/screenshot.png");
-                        FileOutputStream fos = new FileOutputStream(file);
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                        fos.close();
-                        Log.d("Capture", "Скриншот сохранен в /sdcard/screenshot.png");
-                    } catch (Exception e) {
-                        Log.e("Capture", "Ошибка сохранения", e);
-                    }
+                    // Тут будет поиск доски и сетка
+                    // (Пока просто лог)
+                    Log.d("Capture", "Скриншот сделан, размер: " + image.getWidth() + "x" + image.getHeight());
                     
                     image.close();
                 }
