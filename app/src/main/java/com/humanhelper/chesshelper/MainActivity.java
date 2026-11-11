@@ -22,10 +22,11 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
+    // Координаты начала и конца стрелки (внутри окна 1080x1080)
     private int startX = 540;
-    private int startY = 1600;
+    private int startY = 800; 
     private int endX = 540;
-    private int endY = 1300;
+    private int endY = 500;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,19 +46,19 @@ public class MainActivity extends Activity {
 
         Button btnUp = new Button(this);
         btnUp.setText("ВВЕРХ");
-        btnUp.setOnClickListener(v -> { endY -= 100; updateArrow(); });
+        btnUp.setOnClickListener(v -> { endY -= 50; updateArrow(); });
 
         Button btnDown = new Button(this);
         btnDown.setText("ВНИЗ");
-        btnDown.setOnClickListener(v -> { endY += 100; updateArrow(); });
+        btnDown.setOnClickListener(v -> { endY += 50; updateArrow(); });
 
         Button btnLeft = new Button(this);
         btnLeft.setText("ВЛЕВО");
-        btnLeft.setOnClickListener(v -> { endX -= 100; updateArrow(); });
+        btnLeft.setOnClickListener(v -> { endX -= 50; updateArrow(); });
 
         Button btnRight = new Button(this);
         btnRight.setText("ВПРАВО");
-        btnRight.setOnClickListener(v -> { endX += 100; updateArrow(); });
+        btnRight.setOnClickListener(v -> { endX += 50; updateArrow(); });
 
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
@@ -76,8 +77,8 @@ public class MainActivity extends Activity {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         arrowView = new ArrowView(this);
         
-        // Устанавливаем размер окна: только доска (например, 1080x1080)
-        int size = 1080; // Ширина доски. Если доска уже, можно сделать 900 или 800.
+        // Окно размером с доску (1080x1080)
+        int size = 1080;
         
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 size,
@@ -90,10 +91,9 @@ public class MainActivity extends Activity {
                 PixelFormat.TRANSLUCENT
         );
         
-        // Позиционируем окно (например, по центру экрана)
         params.gravity = Gravity.TOP | Gravity.START;
         params.x = 0;
-        params.y = 400; // Сдвиг вниз, чтобы окно было над доской
+        params.y = 400; // Сдвиг вниз, чтобы окно было над доской (подгони под свой экран)
         
         try {
             windowManager.addView(arrowView, params);
@@ -106,7 +106,6 @@ public class MainActivity extends Activity {
     private void updateArrow() {
         if (arrowView != null) {
             arrowView.invalidate();
-            Toast.makeText(this, "Стрелка перемещена", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -124,6 +123,7 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+            // Рисуем стрелку только внутри окна
             canvas.drawLine(startX, startY, endX, endY, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
