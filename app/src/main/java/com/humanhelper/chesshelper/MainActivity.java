@@ -1,6 +1,10 @@
 package com.humanhelper.chesshelper;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
@@ -18,6 +22,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
@@ -33,9 +38,6 @@ public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
     private MediaProjectionManager projectionManager;
-    private MediaProjection mediaProjection;
-    private ImageReader imageReader;
-    private VirtualDisplay virtualDisplay;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,35 +75,18 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
-            mediaProjection = projectionManager.getMediaProjection(resultCode, data);
-            startScreenCapture();
+            // Запускаем сервис для захвата экрана
+            Intent serviceIntent = new Intent(this, CaptureService.class);
+            serviceIntent.putExtra("resultCode", resultCode);
+            serviceIntent.putExtra("data", data);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
         } else {
             Toast.makeText(this, "Отказано в захвате", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void startScreenCapture() {
-        DisplayMetrics metrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(metrics);
-        int width = metrics.widthPixels;
-        int height = metrics.heightPixels;
-        int density = metrics.densityDpi;
-
-        imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
-        virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
-                width, height, density,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                imageReader.getSurface(), null, null);
-
-        imageReader.setOnImageAvailableListener(reader -> {
-            Image image = reader.acquireLatestImage();
-            if (image != null) {
-                // Здесь будет код распознавания доски (OpenCV)
-                // Пока просто выводим сообщение, что скриншот сделан
-                runOnUiThread(() -> Toast.makeText(this, "Скриншот сделан!", Toast.LENGTH_SHORT).show());
-                image.close();
-            }
-        }, new Handler(Looper.getMainLooper()));
     }
 
     private void showOverlay() {
@@ -123,6 +108,64 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    public static class CaptureService extends Service {
+        private MediaProjection mediaProjection;
+        private ImageReader imageReader;
+        private VirtualDisplay virtualDisplay;
+
+        @Override
+        public int onStartCommand(Intent intent, int flags, int startId) {
+            // Создаем уведомление (обязательно для Android 14+)
+            String channelId = "screen_capture";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                NotificationChannel channel = new NotificationChannel(channelId, "Screen Capture", NotificationManager.IMPORTANCE_LOW);
+                NotificationManager manager = getSystemService(NotificationManager.class);
+                manager.createNotificationChannel(channel);
+            }
+            Notification notification = new Notification.Builder(this, channelId)
+                    .setContentTitle("Захват экрана")
+                    .setContentText("Работает")
+                    .setSmallIcon(android.R.drawable.ic_menu_camera)
+                    .build();
+            startForeground(1, notification);
+
+            int resultCode = intent.getIntExtra("resultCode", -1);
+            Intent data = intent.getParcelableExtra("data");
+            if (resultCode != -1 && data != null) {
+                MediaProjectionManager manager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                mediaProjection = manager.getMediaProjection(resultCode, data);
+                startCapture();
+            }
+            return START_STICKY;
+        }
+
+        private void startCapture() {
+            DisplayMetrics metrics = new DisplayMetrics();
+            WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+            wm.getDefaultDisplay().getMetrics(metrics);
+            int width = metrics.widthPixels;
+            int height = metrics.heightPixels;
+            int density = metrics.densityDpi;
+
+            imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
+            virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
+                    width, height, density,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    imageReader.getSurface(), null, null);
+
+            imageReader.setOnImageAvailableListener(reader -> {
+                Image image = reader.acquireLatestImage();
+                if (image != null) {
+                    // Тут будет код OpenCV
+                    image.close();
+                }
+            }, new Handler(Looper.getMainLooper()));
+        }
+
+        @Override
+        public IBinder onBind(Intent intent) { return null; }
     }
 
     public class ArrowView extends View {
