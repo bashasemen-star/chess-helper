@@ -22,7 +22,12 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
-    private boolean overlayVisible = false;
+    
+    // Координаты (меняются кнопками)
+    private int startX = 540;
+    private int startY = 1600;
+    private int endX = 540;
+    private int endY = 1300;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,44 +45,58 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        Button btnUp = new Button(this);
-        btnUp.setText("ВВЕРХ");
-        btnUp.setOnClickListener(v -> moveArrow(0, -50));
-
-        Button btnDown = new Button(this);
-        btnDown.setText("ВНИЗ");
-        btnDown.setOnClickListener(v -> moveArrow(0, 50));
-
-        Button btnLeft = new Button(this);
-        btnLeft.setText("ВЛЕВО");
-        btnLeft.setOnClickListener(v -> moveArrow(-50, 0));
-
-        Button btnRight = new Button(this);
-        btnRight.setText("ВПРАВО");
-        btnRight.setOnClickListener(v -> moveArrow(50, 0));
-
+        // ВКЛЮЧИТЬ
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
         btnOn.setOnClickListener(v -> showOverlay());
 
+        // ДВИЖЕНИЕ НИЗА (начало)
+        Button btnStartUp = new Button(this);
+        btnStartUp.setText("НИЗ ВВЕРХ");
+        btnStartUp.setOnClickListener(v -> { startY -= 50; updateArrow(); });
+
+        Button btnStartDown = new Button(this);
+        btnStartDown.setText("НИЗ ВНИЗ");
+        btnStartDown.setOnClickListener(v -> { startY += 50; updateArrow(); });
+
+        Button btnStartLeft = new Button(this);
+        btnStartLeft.setText("НИЗ ВЛЕВО");
+        btnStartLeft.setOnClickListener(v -> { startX -= 50; updateArrow(); });
+
+        Button btnStartRight = new Button(this);
+        btnStartRight.setText("НИЗ ВПРАВО");
+        btnStartRight.setOnClickListener(v -> { startX += 50; updateArrow(); });
+
+        // ДВИЖЕНИЕ ВЕРХА (конец)
+        Button btnEndUp = new Button(this);
+        btnEndUp.setText("ВЕРХ ВВЕРХ");
+        btnEndUp.setOnClickListener(v -> { endY -= 50; updateArrow(); });
+
+        Button btnEndDown = new Button(this);
+        btnEndDown.setText("ВЕРХ ВНИЗ");
+        btnEndDown.setOnClickListener(v -> { endY += 50; updateArrow(); });
+
+        Button btnEndLeft = new Button(this);
+        btnEndLeft.setText("ВЕРХ ВЛЕВО");
+        btnEndLeft.setOnClickListener(v -> { endX -= 50; updateArrow(); });
+
+        Button btnEndRight = new Button(this);
+        btnEndRight.setText("ВЕРХ ВПРАВО");
+        btnEndRight.setOnClickListener(v -> { endX += 50; updateArrow(); });
+
         layout.addView(btnOn);
-        layout.addView(btnUp);
-        layout.addView(btnDown);
-        layout.addView(btnLeft);
-        layout.addView(btnRight);
+        layout.addView(btnStartUp);
+        layout.addView(btnStartDown);
+        layout.addView(btnStartLeft);
+        layout.addView(btnStartRight);
+        layout.addView(btnEndUp);
+        layout.addView(btnEndDown);
+        layout.addView(btnEndLeft);
+        layout.addView(btnEndRight);
         setContentView(layout);
     }
 
-    private void moveArrow(int dx, int dy) {
-        if (arrowView != null) {
-            arrowView.move(dx, dy);
-        } else {
-            Toast.makeText(this, "Сначала включи стрелку", Toast.LENGTH_SHORT).show();
-        }
-    }
-
     private void showOverlay() {
-        if (overlayVisible) return;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         arrowView = new ArrowView(this);
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
@@ -93,17 +112,20 @@ public class MainActivity extends Activity {
         params.gravity = Gravity.TOP | Gravity.START;
         try {
             windowManager.addView(arrowView, params);
-            overlayVisible = true;
+            Toast.makeText(this, "Стрелка включена", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
+    private void updateArrow() {
+        if (arrowView != null) {
+            arrowView.invalidate();
+        }
+    }
+
     public class ArrowView extends View {
         private Paint paint;
-        private int offsetX = 0;
-        private int offsetY = 0;
-
         public ArrowView(Context context) {
             super(context);
             paint = new Paint();
@@ -113,26 +135,15 @@ public class MainActivity extends Activity {
             paint.setAntiAlias(true);
         }
 
-        public void move(int dx, int dy) {
-            offsetX += dx;
-            offsetY += dy;
-            invalidate(); // Перерисовываем
-        }
-
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            int sx = 540 + offsetX;
-            int sy = 1600 + offsetY;
-            int ex = 540 + offsetX;
-            int ey = 1300 + offsetY;
-
-            canvas.drawLine(sx, sy, ex, ey, paint);
+            canvas.drawLine(startX, startY, endX, endY, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
-            path.moveTo(ex, ey);
-            path.lineTo(ex - 40, ey + 60);
-            path.lineTo(ex + 40, ey + 60);
+            path.moveTo(endX, endY);
+            path.lineTo(endX - 40, endY + 60);
+            path.lineTo(endX + 40, endY + 60);
             path.close();
             canvas.drawPath(path, paint);
         }
