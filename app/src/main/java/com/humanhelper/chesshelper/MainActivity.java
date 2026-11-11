@@ -33,7 +33,6 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // Координаты доски
     private int boardX = 62;
     private int boardY = 936;
     private int cellSize = 135;
@@ -55,7 +54,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ ТЕСТ СЕТКИ");
+        btnStart.setText("ЗАПУСТИТЬ АНАЛИЗ ЦВЕТА");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -71,14 +70,14 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Тест сетки запущен. Жди...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Анализ запущен. Смотри логи...", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 3000); // Каждые 3 секунды
+                    handler.postDelayed(this, 3000);
                 }
             }
         }, 1000);
@@ -96,18 +95,40 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    runOnUiThread(() -> {
-                        if (gridView != null) {
-                            gridView.setGrid(boardX, boardY, cellSize);
-                            gridView.setVisibility(View.VISIBLE);
-                        }
-                    });
+                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
                     
-                    handler.postDelayed(() -> {
-                        if (gridView != null) {
-                            gridView.setVisibility(View.GONE);
+                    // Анализируем цвет в центре каждой клетки
+                    StringBuilder log = new StringBuilder("Анализ доски:\n");
+                    for (int row = 0; row < 8; row++) {
+                        for (int col = 0; col < 8; col++) {
+                            int centerX = boardX + col * cellSize + cellSize / 2;
+                            int centerY = boardY + row * cellSize + cellSize / 2;
+                            
+                            // Берем пиксель в центре
+                            int pixel = bitmap.getPixel(centerX, centerY);
+                            int r = (pixel >> 16) & 0xff;
+                            int g = (pixel >> 8) & 0xff;
+                            int b = pixel & 0xff;
+                            
+                            // Определяем цвет (упрощенно)
+                            String colorType;
+                            if (r > 200 && g > 200 && b > 200) {
+                                colorType = "БЕЛАЯ";
+                            } else if (r < 80 && g < 80 && b < 80) {
+                                colorType = "ЧЕРНАЯ";
+                            } else {
+                                colorType = "ПУСТО";
+                            }
+                            
+                            log.append(String.format("%c%d: %s (%d,%d,%d)\n", 
+                                (char)('a' + col), 8 - row, colorType, r, g, b));
                         }
-                    }, 2000);
+                    }
+                    
+                    Log.d("ColorAnalysis", log.toString());
+                    bitmap.recycle();
+                    
+                    runOnUiThread(() -> Toast.makeText(this, "Анализ завершен. Смотри логи!", Toast.LENGTH_SHORT).show());
                 }
                 
             } catch (Exception e) {
@@ -139,35 +160,8 @@ public class MainActivity extends Activity {
     }
 
     public class GridView extends View {
-        private Paint paint;
-        private int x, y, size;
-
         public GridView(Context context) {
             super(context);
-            paint = new Paint();
-            paint.setColor(Color.parseColor("#FF0000")); // Красный
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(5f); // Толщина линий
-            paint.setAntiAlias(true);
-        }
-
-        public void setGrid(int boardX, int boardY, int cellSize) {
-            this.x = boardX;
-            this.y = boardY;
-            this.size = cellSize;
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            // Рисуем сетку 8x8
-            for (int i = 0; i <= 8; i++) {
-                // Горизонтальные линии
-                canvas.drawLine(x, y + i * size, x + 8 * size, y + i * size, paint);
-                // Вертикальные линии
-                canvas.drawLine(x + i * size, y, x + i * size, y + 8 * size, paint);
-            }
         }
     }
 }
