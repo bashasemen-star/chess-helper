@@ -24,17 +24,22 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.move.Move;
+import com.github.bhlangonijr.chesslib.move.MoveGenerator;
+
 import java.io.DataOutputStream;
 import java.io.File;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
-    private GridView gridView;
+    private SquareView squareView;
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    private int boardX = 62;
-    private int boardY = 936;
+    private int boardX = 0;
+    private int boardY = 850;
     private int cellSize = 135;
 
     @Override
@@ -54,7 +59,7 @@ public class MainActivity extends Activity {
         layout.setGravity(Gravity.CENTER);
 
         Button btnStart = new Button(this);
-        btnStart.setText("ЗАПУСТИТЬ АНАЛИЗ ЦВЕТА");
+        btnStart.setText("ЗАПУСТИТЬ ЧИТ");
         btnStart.setOnClickListener(v -> {
             if (!isRunning) {
                 startAutoHack();
@@ -70,14 +75,14 @@ public class MainActivity extends Activity {
     private void startAutoHack() {
         isRunning = true;
         showOverlay();
-        Toast.makeText(this, "Анализ запущен. Смотри логи...", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Чит запущен. Смотри квадраты!", Toast.LENGTH_LONG).show();
         
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 3000);
+                    handler.postDelayed(this, 2000);
                 }
             }
         }, 1000);
@@ -97,38 +102,40 @@ public class MainActivity extends Activity {
                 if (imgFile.exists()) {
                     Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
                     
-                    // Анализируем цвет в центре каждой клетки
-                    StringBuilder log = new StringBuilder("Анализ доски:\n");
-                    for (int row = 0; row < 8; row++) {
-                        for (int col = 0; col < 8; col++) {
-                            int centerX = boardX + col * cellSize + cellSize / 2;
-                            int centerY = boardY + row * cellSize + cellSize / 2;
-                            
-                            // Берем пиксель в центре
-                            int pixel = bitmap.getPixel(centerX, centerY);
-                            int r = (pixel >> 16) & 0xff;
-                            int g = (pixel >> 8) & 0xff;
-                            int b = pixel & 0xff;
-                            
-                            // Определяем цвет (упрощенно)
-                            String colorType;
-                            if (r > 200 && g > 200 && b > 200) {
-                                colorType = "БЕЛАЯ";
-                            } else if (r < 80 && g < 80 && b < 80) {
-                                colorType = "ЧЕРНАЯ";
-                            } else {
-                                colorType = "ПУСТО";
+                    Board board = new Board();
+                    List<Move> moves = MoveGenerator.generateLegalMoves(board);
+                    if (!moves.isEmpty()) {
+                        Move bestMove = moves.get(0);
+                        
+                        String from = bestMove.getFrom().toString();
+                        String to = bestMove.getTo().toString();
+                        
+                        int fromCol = from.charAt(0) - 'a';
+                        int fromRow = 8 - Integer.parseInt(from.substring(1));
+                        
+                        int toCol = to.charAt(0) - 'a';
+                        int toRow = 8 - Integer.parseInt(to.substring(1));
+                        
+                        int startX = boardX + fromCol * cellSize;
+                        int startY = boardY + fromRow * cellSize;
+                        int endX = boardX + toCol * cellSize;
+                        int endY = boardY + toRow * cellSize;
+                        
+                        runOnUiThread(() -> {
+                            if (squareView != null) {
+                                squareView.setSquares(startX, startY, endX, endY, cellSize);
+                                squareView.setVisibility(View.VISIBLE);
                             }
-                            
-                            log.append(String.format("%c%d: %s (%d,%d,%d)\n", 
-                                (char)('a' + col), 8 - row, colorType, r, g, b));
-                        }
+                        });
+                        
+                        handler.postDelayed(() -> {
+                            if (squareView != null) {
+                                squareView.setVisibility(View.GONE);
+                            }
+                        }, 1500);
                     }
                     
-                    Log.d("ColorAnalysis", log.toString());
                     bitmap.recycle();
-                    
-                    runOnUiThread(() -> Toast.makeText(this, "Анализ завершен. Смотри логи!", Toast.LENGTH_SHORT).show());
                 }
                 
             } catch (Exception e) {
@@ -139,7 +146,7 @@ public class MainActivity extends Activity {
 
     private void showOverlay() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        gridView = new GridView(this);
+        squareView = new SquareView(this);
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -152,16 +159,39 @@ public class MainActivity extends Activity {
         );
         params.gravity = Gravity.TOP | Gravity.START;
         try {
-            windowManager.addView(gridView, params);
-            gridView.setVisibility(View.GONE);
+            windowManager.addView(squareView, params);
+            squareView.setVisibility(View.GONE);
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
-    public class GridView extends View {
-        public GridView(Context context) {
+    public class SquareView extends View {
+        private Paint paint;
+        private Rect rect1, rect2;
+
+        public SquareView(Context context) {
             super(context);
+            paint = new Paint();
+            paint.setColor(Color.parseColor("#FF0000"));
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(15f);
+            paint.setAntiAlias(true);
+            rect1 = new Rect();
+            rect2 = new Rect();
+        }
+
+        public void setSquares(int x1, int y1, int x2, int y2, int size) {
+            rect1.set(x1, y1, x1 + size, y1 + size);
+            rect2.set(x2, y2, x2 + size, y2 + size);
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            canvas.drawRect(rect1, paint);
+            canvas.drawRect(rect2, paint);
         }
     }
 }
