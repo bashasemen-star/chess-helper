@@ -11,6 +11,7 @@ import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -19,15 +20,18 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import com.github.bhlangonijr.chesslib.Board;
-import com.github.bhlangonijr.chesslib.move.Move;
-import com.github.bhlangonijr.chesslib.move.MoveGenerator;
-
-import java.util.List;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
     private ArrowView arrowView;
+    
+    private int startX = 540;
+    private int startY = 1500;
+    private int endX = 540;
+    private int endY = 1200;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,32 +49,12 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        Button btnTest = new Button(this);
-        btnTest.setText("ТЕСТ ДВИЖКА");
-        btnTest.setOnClickListener(v -> testEngine());
-
         Button btnOn = new Button(this);
-        btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
+        btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ (АВТО)");
         btnOn.setOnClickListener(v -> showOverlay());
 
-        layout.addView(btnTest);
         layout.addView(btnOn);
         setContentView(layout);
-    }
-
-    private void testEngine() {
-        try {
-            Board board = new Board();
-            List<Move> moves = MoveGenerator.generateLegalMoves(board);
-            if (!moves.isEmpty()) {
-                Move bestMove = moves.get(0);
-                Toast.makeText(this, "Движок работает! Ход: " + bestMove, Toast.LENGTH_LONG).show();
-            } else {
-                Toast.makeText(this, "Нет доступных ходов", Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
     }
 
     private void showOverlay() {
@@ -89,8 +73,39 @@ public class MainActivity extends Activity {
         params.gravity = Gravity.TOP | Gravity.START;
         try {
             windowManager.addView(arrowView, params);
+            // Запускаем чтение файла каждые 2 секунды
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    readMoveFromFile();
+                    new Handler().postDelayed(this, 2000);
+                }
+            }, 2000);
+            Toast.makeText(this, "Стрелка включена. Жду ход от скрипта...", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void readMoveFromFile() {
+        try {
+            File file = new File("/sdcard/move.txt");
+            if (file.exists()) {
+                BufferedReader br = new BufferedReader(new FileReader(file));
+                String move = br.readLine();
+                br.close();
+                
+                if (move != null && !move.isEmpty()) {
+                    // Тут мы должны перевести ход (e2e4) в координаты.
+                    // Пока просто рисуем стрелку в фиксированном месте (e2-e4).
+                    // В будущем здесь будет конвертация.
+                    startX = 540; startY = 1500; // e2
+                    endX = 540; endY = 1200;     // e4
+                    if (arrowView != null) arrowView.invalidate();
+                }
+            }
+        } catch (Exception e) {
+            // Игнорируем ошибки чтения
         }
     }
 
@@ -108,12 +123,12 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            canvas.drawLine(540, 1600, 540, 1300, paint);
+            canvas.drawLine(startX, startY, endX, endY, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
-            path.moveTo(540, 1300);
-            path.lineTo(500, 1360);
-            path.lineTo(580, 1360);
+            path.moveTo(endX, endY);
+            path.lineTo(endX - 40, endY + 60);
+            path.lineTo(endX + 40, endY + 60);
             path.close();
             canvas.drawPath(path, paint);
         }
