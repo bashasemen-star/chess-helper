@@ -39,7 +39,6 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Интерфейс с кнопками
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
@@ -81,14 +80,15 @@ public class MainActivity extends Activity {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | // ВАЖНО: пропускает касания
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
         );
         params.gravity = Gravity.TOP | Gravity.START;
         try {
             windowManager.addView(arrowView, params);
-            Toast.makeText(this, "Стрелка включена", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Стрелка включена (тачи работают)", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
