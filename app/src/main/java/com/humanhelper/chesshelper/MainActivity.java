@@ -8,10 +8,19 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
+import android.media.projection.MediaProjection;
+import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -20,18 +29,18 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
+    private static final int REQUEST_CODE = 100;
     private WindowManager windowManager;
     private ArrowView arrowView;
-    
-    // Текущие координаты стрелки (в пикселях)
-    private int startX = 540;
-    private int startY = 1600;
-    private int endX = 540;
-    private int endY = 1300;
+    private MediaProjectionManager projectionManager;
+    private MediaProjection mediaProjection;
+    private ImageReader imageReader;
+    private VirtualDisplay virtualDisplay;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -45,28 +54,54 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setGravity(Gravity.CENTER);
 
-        Button btnTest = new Button(this);
-        btnTest.setText("ПОКАЗАТЬ ХОД (e2-e4)");
-        btnTest.setOnClickListener(v -> {
-            // Тестовый ход e2-e4
-            // Координаты для доски (примерные, подгони под свой экран)
-            // e2: x = 540 (центр), y = 1600
-            // e4: x = 540, y = 1300
-            startX = 540;
-            startY = 1600;
-            endX = 540;
-            endY = 1300;
-            updateArrow();
-            Toast.makeText(this, "Стрелка на e2-e4", Toast.LENGTH_SHORT).show();
+        Button btnCapture = new Button(this);
+        btnCapture.setText("ЗАХВАТИТЬ ЭКРАН");
+        btnCapture.setOnClickListener(v -> {
+            startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_CODE);
         });
 
         Button btnOn = new Button(this);
         btnOn.setText("ВКЛЮЧИТЬ СТРЕЛКУ");
         btnOn.setOnClickListener(v -> showOverlay());
 
-        layout.addView(btnTest);
+        layout.addView(btnCapture);
         layout.addView(btnOn);
         setContentView(layout);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE && resultCode == RESULT_OK) {
+            mediaProjection = projectionManager.getMediaProjection(resultCode, data);
+            startScreenCapture();
+        } else {
+            Toast.makeText(this, "Отказано в захвате", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startScreenCapture() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        int width = metrics.widthPixels;
+        int height = metrics.heightPixels;
+        int density = metrics.densityDpi;
+
+        imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
+        virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
+                width, height, density,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader.getSurface(), null, null);
+
+        imageReader.setOnImageAvailableListener(reader -> {
+            Image image = reader.acquireLatestImage();
+            if (image != null) {
+                // Здесь будет код распознавания доски (OpenCV)
+                // Пока просто выводим сообщение, что скриншот сделан
+                runOnUiThread(() -> Toast.makeText(this, "Скриншот сделан!", Toast.LENGTH_SHORT).show());
+                image.close();
+            }
+        }, new Handler(Looper.getMainLooper()));
     }
 
     private void showOverlay() {
@@ -90,12 +125,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void updateArrow() {
-        if (arrowView != null) {
-            arrowView.invalidate();
-        }
-    }
-
     public class ArrowView extends View {
         private Paint paint;
         public ArrowView(Context context) {
@@ -110,13 +139,12 @@ public class MainActivity extends Activity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            // Рисуем стрелку по текущим координатам
-            canvas.drawLine(startX, startY, endX, endY, paint);
+            canvas.drawLine(540, 1600, 540, 1300, paint);
             paint.setStyle(Paint.Style.FILL);
             Path path = new Path();
-            path.moveTo(endX, endY);
-            path.lineTo(endX - 40, endY + 60);
-            path.lineTo(endX + 40, endY + 60);
+            path.moveTo(540, 1300);
+            path.lineTo(500, 1360);
+            path.lineTo(580, 1360);
             path.close();
             canvas.drawPath(path, paint);
         }
