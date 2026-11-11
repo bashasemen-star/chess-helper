@@ -3,8 +3,6 @@ package com.humanhelper.chesshelper;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -26,7 +24,6 @@ import android.widget.Toast;
 
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
     private WindowManager windowManager;
@@ -34,11 +31,11 @@ public class MainActivity extends Activity {
     private Handler handler = new Handler(Looper.getMainLooper());
     private boolean isRunning = false;
 
-    // НИЖНИЙ КВАДРАТ (e2) - идеален
+    // Квадрат на e2 (нижний, стоит идеально)
     private int startX = 540;
     private int startY = 1540;
 
-    // ВЕРХНИЙ КВАДРАТ (e4) - сдвинули вправо на 1 клетку (135px)
+    // Квадрат на e4 (верхний, сдвинут вправо и вверх)
     private int endX = 675; 
     private int endY = 1230; 
 
@@ -84,7 +81,7 @@ public class MainActivity extends Activity {
             public void run() {
                 if (isRunning) {
                     doHack();
-                    handler.postDelayed(this, 2000);
+                    handler.postDelayed(this, 2000); // Каждые 2 секунды
                 }
             }
         }, 1000);
@@ -93,6 +90,7 @@ public class MainActivity extends Activity {
     private void doHack() {
         new Thread(() -> {
             try {
+                // 1. Делаем скриншот с рутом
                 Process process = Runtime.getRuntime().exec("su");
                 DataOutputStream os = new DataOutputStream(process.getOutputStream());
                 os.writeBytes("screencap -p /sdcard/screen.png\n");
@@ -102,15 +100,7 @@ public class MainActivity extends Activity {
 
                 File imgFile = new File("/sdcard/screen.png");
                 if (imgFile.exists()) {
-                    // Сохраняем скриншот во внутреннюю папку приложения (туда есть доступ)
-                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-                    File internalFile = new File(getFilesDir(), "screen.png");
-                    try (FileOutputStream fos = new FileOutputStream(internalFile)) {
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                    }
-                    bitmap.recycle();
-                    
-                    // Рисуем квадраты
+                    // 2. Рисуем квадраты (просто появляются и исчезают)
                     runOnUiThread(() -> {
                         if (squareView != null) {
                             squareView.setSquares(startX, startY, endX, endY, cellSize);
