@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -20,13 +21,12 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // 1. Проверяем разрешение на оверлей
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:" + getPackageName()));
@@ -34,14 +34,7 @@ public class MainActivity extends Activity {
             finish();
             return;
         }
-
-        // 2. Запускаем сервис
-        Intent serviceIntent = new Intent(this, OverlayService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
+        startService(new Intent(this, OverlayService.class));
         finish();
     }
 
@@ -53,7 +46,6 @@ public class MainActivity extends Activity {
         public void onCreate() {
             super.onCreate();
             
-            // Создаем уведомление, чтобы Android не убил сервис
             String channelId = "chess_helper_channel";
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel channel = new NotificationChannel(channelId, "Chess Helper", NotificationManager.IMPORTANCE_LOW);
@@ -67,10 +59,13 @@ public class MainActivity extends Activity {
                     .setSmallIcon(android.R.drawable.ic_menu_compass)
                     .build();
             
-            // ВАЖНО: вызываем startForeground ДО добавления оверлея
-            startForeground(1, notification);
+            // ВАЖНО: указываем тип specialUse для Android 14+
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else {
+                startForeground(1, notification);
+            }
 
-            // Теперь создаем оверлей
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             arrowView = new ArrowView(this);
             
